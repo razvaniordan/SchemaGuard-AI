@@ -1,0 +1,12 @@
+{
+  "name": "schemeguard-ai-frontend",
+  "version": "0.1.0",
+  "scripts": {
+    "start": "echo Starting frontend",
+    "dev": "echo Frontend dev server",
+    "build": "echo Building frontend",
+    "test": "echo Running frontend tests"
+  },
+  "dependencies": {},
+  "devDependencies": {}
+}
