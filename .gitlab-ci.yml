@@ -1,0 +1,53 @@
+stages:
+  - install
+  - test
+  - build
+
+# =====================
+# FRONTEND
+# =====================
+
+frontend_install:
+  stage: install
+  image: node:20
+  script:
+    - cd frontend
+    - npm install
+
+frontend_test:
+  stage: test
+  image: node:20
+  script:
+    - cd frontend
+    - npm run test
+
+frontend_build:
+  stage: build
+  image: node:20
+  script:
+    - cd frontend
+    - npm run build
+
+# =====================
+# BACKEND
+# =====================
+
+backend_install:
+  stage: install
+  image: python:3.11
+  script:
+    - cd backend
+    - pip install -r requirements.txt
+
+backend_test:
+  stage: test
+  image: python:3.11
+  script:
+    - cd backend
+    - python src/main.py
+
+backend_build:
+  stage: build
+  image: python:3.11
+  script:
+    - echo "Backend build step (placeholder)"
