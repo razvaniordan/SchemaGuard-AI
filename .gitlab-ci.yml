@@ -37,22 +37,16 @@ frontend_build:
 # BACKEND
 # =====================
 
-backend_install:
-  stage: install
-  image: python:3.11
-  script:
-    - cd backend
-    - pip install -r requirements.txt
-
 backend_test:
   stage: test
-  image: python:3.11
+  image: maven:3.9-eclipse-temurin-21
   script:
     - cd backend
-    - python src/main.py
+    - mvn test
 
 backend_build:
   stage: build
-  image: python:3.11
+  image: maven:3.9-eclipse-temurin-21
   script:
-    - echo "Backend build step (placeholder)"
+    - cd backend
+    - mvn clean package
