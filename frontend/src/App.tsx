@@ -16,4 +16,8 @@ export default function App() {
       </Card>
     </main>
   );
+<<<<<<< HEAD
 }
+=======
+}
+>>>>>>> a3123ef (Reusable UI component library implementation)
