@@ -18,7 +18,10 @@
     "@tailwindcss/vite": "^4.2.4",
     "react": "^19.2.5",
     "react-dom": "^19.2.5",
+<<<<<<< HEAD
     "tailwindcss": "^4.2.4",
+=======
+>>>>>>> e02c014 (Add state management setup)
     "zustand": "^5.0.12"
   },
   "devDependencies": {
@@ -50,6 +53,7 @@
     "typescript-eslint": "^8.58.2",
     "vite": "^8.0.10",
 <<<<<<< HEAD
+<<<<<<< HEAD
     "vitest": "^4.1.5"
 =======
     "storybook": "^10.3.5",
@@ -64,5 +68,8 @@
     "@vitest/browser-playwright": "^4.1.5",
     "@vitest/coverage-v8": "^4.1.5"
 >>>>>>> a3123ef (Reusable UI component library implementation)
+=======
+    "vitest": "^4.1.5"
+>>>>>>> e02c014 (Add state management setup)
   }
 }
