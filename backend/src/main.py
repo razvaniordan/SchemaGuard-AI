@@ -1,1 +1,0 @@
-print("SchemeGuard AI backend started")
