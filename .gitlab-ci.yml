@@ -17,15 +17,20 @@ frontend_install:
 frontend_test:
   stage: test
   image: node:20
-  script:
+  before_script:
     - cd frontend
-    - npm run test
+    - npm ci
+  script:
+    - npm run typecheck
+    - npm run test:run
 
 frontend_build:
   stage: build
   image: node:20
-  script:
+  before_script:
     - cd frontend
+    - npm ci
+  script:
     - npm run build
 
 # =====================
