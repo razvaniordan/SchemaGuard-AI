@@ -1,0 +1,12 @@
+spring:
+  application:
+    name: story-1-3-api-framework
+
+server:
+  port: 8080
+
+springdoc:
+  api-docs:
+    path: /v3/api-docs
+  swagger-ui:
+    path: /swagger-ui.html
