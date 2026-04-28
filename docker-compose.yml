@@ -11,10 +11,10 @@ services:
       - "3000:3000"
 
   backend:
-    image: python:3.11
+    image: maven:3.9-eclipse-temurin-21
     working_dir: /app
     volumes:
       - ./backend:/app
-    command: sh -c "pip install -r requirements.txt && python src/main.py"
+    command: sh -c "mvn spring-boot:run"
     ports:
-      - "8000:8000"
+      - "8000:8080"
