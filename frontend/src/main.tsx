@@ -7,8 +7,4 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode>
     <App />
   </React.StrictMode>,
-<<<<<<< HEAD
 );
-=======
-);
->>>>>>> a3123ef (Reusable UI component library implementation)
