@@ -1,11 +1,32 @@
-# Node.js
+# Java / Maven
+target/
+**/target/
+*.class
+
+# Node.js / Frontend
 node_modules/
 dist/
 build/
+coverage/
+
+# Python
+__pycache__/
+**/__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+venv/
+.venv/
 
 # Environment variables
 .env
-.env.local
+.env.*
+!.env.example
 
 # Logs
 logs/
@@ -19,10 +40,9 @@ Thumbs.db
 .vscode/
 .idea/
 
-# Python (dacă folosești backend Python)
-__pycache__/
-*.pyc
-venv/
+# Docker
+*.pid
 
 # Misc
-coverage/
+*.tmp
+*.swp
