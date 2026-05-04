@@ -1,11 +1,15 @@
 from fastapi import FastAPI
-
+from core.transaction_simulator import TransactionSimulator
 from core.missed_condition_detector import MissedConditionDetector
 from core.change_suggestion_engine import ChangeSuggestionEngine
+from core.ml_core import MLCore
+from models.analysis_models import MLCoreRequest, MLCoreResponse
 from models.analysis_models import (
     RuleEngineResult,
     MissedConditionAnalysis,
     ChangeSuggestionResponse,
+    TransactionSimulationRequest,
+    TransactionSimulationResponse,
 )
 
 
@@ -15,6 +19,9 @@ app = FastAPI(title="SchemeGuard AI ML Service")
 detector = MissedConditionDetector()
 suggestion_engine = ChangeSuggestionEngine()
 
+simulator = TransactionSimulator()
+
+ml_core = MLCore()
 
 @app.post("/missed-conditions", response_model=MissedConditionAnalysis)
 def analyze_missed_conditions(
@@ -38,3 +45,17 @@ def generate_change_suggestions(
 
     # Return sorted suggestions
     return ChangeSuggestionResponse(suggestions=suggestions)
+
+@app.post("/simulate-transaction", response_model=TransactionSimulationResponse)
+def simulate_transaction(request: TransactionSimulationRequest):
+    # Apply suggestions to transaction and return simulated result
+    return simulator.simulate(request.transaction, request.suggestions)
+
+@app.post("/ml-core/analyze", response_model=MLCoreResponse)
+def analyze_with_ml_core(request: MLCoreRequest):
+    # Run full ML pipeline:
+    # missed condition detection -> suggestion generation -> simulation -> scoring
+    return ml_core.analyze_transaction(
+        request.currentResult,
+        request.optimalResult,
+    )
