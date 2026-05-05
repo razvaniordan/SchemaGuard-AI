@@ -136,35 +136,117 @@ class ConditionEvaluator:
         transaction: TransactionInput,
         expected: Channel,
     ) -> ClassificationConditionResult:
-        if expected == Channel.ANY:
-            return self._not_applicable(
-                field="channel",
-                expected=expected.value,
-                actual=self._enum_value(transaction.channel),
-                message="Rule accepts any channel.",
-            )
+        """Evaluate transaction channel using Python match/case.
 
-        if transaction.channel is None:
-            return self._missing(
-                field="channel",
-                expected=expected.value,
-                reason_code="MISSING_CHANNEL",
-            )
+        Supported business channels:
+        - POS
+        - eCommerce
+        - MOTO
 
-        if transaction.channel == expected:
-            return self._matched(
-                field="channel",
-                expected=expected.value,
-                actual=transaction.channel.value,
-            )
+        Channel.ANY is treated as not applicable.
+        Missing or unknown channels fail the specific rule and are logged.
+        """
 
-        return self._not_matched(
-            field="channel",
-            expected=expected.value,
-            actual=transaction.channel.value,
-            reason_code="CHANNEL_MISMATCH",
-        )
+        actual = transaction.channel
 
+        match (expected, actual):
+            case (Channel.ANY, _):
+                return self._not_applicable(
+                    field="channel",
+                    expected=expected.value,
+                    actual=self._enum_value(actual),
+                    message="Rule accepts any channel.",
+                )
+
+            case (_, None):
+                logger.info(
+                    "Missing channel for transaction_id=%s",
+                    transaction.transaction_id,
+                )
+                return self._missing(
+                    field="channel",
+                    expected=expected.value,
+                    reason_code="MISSING_CHANNEL",
+                )
+
+            case (_, Channel.UNKNOWN):
+                logger.info(
+                    "Unknown channel for transaction_id=%s",
+                    transaction.transaction_id,
+                )
+                return self._not_matched(
+                    field="channel",
+                    expected=expected.value,
+                    actual=Channel.UNKNOWN.value,
+                    reason_code="UNKNOWN_CHANNEL",
+                    message="Transaction channel is unknown.",
+                )
+
+            case (Channel.POS, Channel.POS):
+                return self._matched(
+                    field="channel",
+                    expected=Channel.POS.value,
+                    actual=Channel.POS.value,
+                    message="POS channel matched.",
+                )
+
+            case (Channel.ECOMMERCE, Channel.ECOMMERCE):
+                return self._matched(
+                    field="channel",
+                    expected=Channel.ECOMMERCE.value,
+                    actual=Channel.ECOMMERCE.value,
+                    message="eCommerce channel matched.",
+                )
+
+            case (Channel.MOTO, Channel.MOTO):
+                return self._matched(
+                    field="channel",
+                    expected=Channel.MOTO.value,
+                    actual=Channel.MOTO.value,
+                    message="MOTO channel matched.",
+                )
+
+            case (Channel.POS, _):
+                return self._not_matched(
+                    field="channel",
+                    expected=Channel.POS.value,
+                    actual=self._enum_value(actual),
+                    reason_code="CHANNEL_MISMATCH",
+                    message="Expected POS channel.",
+                )
+
+            case (Channel.ECOMMERCE, _):
+                return self._not_matched(
+                    field="channel",
+                    expected=Channel.ECOMMERCE.value,
+                    actual=self._enum_value(actual),
+                    reason_code="CHANNEL_MISMATCH",
+                    message="Expected eCommerce channel.",
+                )
+
+            case (Channel.MOTO, _):
+                return self._not_matched(
+                    field="channel",
+                    expected=Channel.MOTO.value,
+                    actual=self._enum_value(actual),
+                    reason_code="CHANNEL_MISMATCH",
+                    message="Expected MOTO channel.",
+                )
+
+            case _:
+                logger.warning(
+                    "Unsupported channel evaluation expected=%s actual=%s transaction_id=%s",
+                    self._enum_value(expected),
+                    self._enum_value(actual),
+                    transaction.transaction_id,
+                )
+                return self._not_matched(
+                    field="channel",
+                    expected=self._enum_value(expected),
+                    actual=self._enum_value(actual),
+                    reason_code="UNSUPPORTED_CHANNEL_EVALUATION",
+                    message="Unsupported channel evaluation.",
+                )
     def evaluate_auth_status(
         self,
         transaction: TransactionInput,
