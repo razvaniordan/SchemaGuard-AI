@@ -14,7 +14,10 @@ from models.analysis_models import (
     RankedSuggestion,
     RuleEngineResult,
     PortfolioPatternResponse,
-    AnomalyDetectionResponse
+    AnomalyDetectionResponse,
+    BulkSimulationRequest,
+    BulkSimulationResponse,
+    BulkSimulationSkippedTransaction,
 )
 
 
@@ -317,3 +320,136 @@ class MLCore:
         # Delegate detection logic
         return detector.detect(results)
 
+    def simulate_bulk_scenarios(
+            self,
+            request: BulkSimulationRequest,
+    ) -> BulkSimulationResponse:
+        """
+        Simulate recommendation impact across multiple transactions.
+
+        For each transaction:
+        - Run the existing ML analysis pipeline
+        - Select the top N ranked recommendations
+        - Apply those recommendations through the simulator
+        - Estimate the financial impact
+        """
+
+        total_current_fees = 0.0
+        total_simulated_fees = 0.0
+        savings_by_condition = {}
+        skipped_transactions = []
+        processed_transactions = 0
+
+        # Prevent negative recommendation limits
+        top_n = max(request.applyTopNRecommendations, 0)
+
+        for index, item in enumerate(request.transactions):
+            try:
+                current_result = item.currentResult
+                optimal_result = item.optimalResult
+
+                # Run existing pipeline:
+                # missed conditions -> suggestions -> ranking -> simulation
+                analysis_result = self.analyze_transaction(
+                    current_result,
+                    optimal_result,
+                )
+
+                # Only apply the top N recommendations requested by the user
+                selected_suggestions = analysis_result.rankedSuggestions[:top_n]
+
+                # If no suggestions should be applied, simulated fee remains current fee
+                if not selected_suggestions:
+                    total_current_fees += current_result.feeAmount
+                    total_simulated_fees += current_result.feeAmount
+                    processed_transactions += 1
+                    continue
+
+                # Use the existing simulator so validation rules are respected
+                simulation = self.simulator.simulate(
+                    current_result.transaction,
+                    selected_suggestions,
+                )
+
+                # Invalid simulated transactions are excluded and logged
+                if not simulation.valid:
+                    skipped_transactions.append(
+                        BulkSimulationSkippedTransaction(
+                            index=index,
+                            reason=", ".join(simulation.validationMessages),
+                        )
+                    )
+                    continue
+
+                current_fee = current_result.feeAmount
+                optimal_fee = optimal_result.feeAmount
+
+                # Estimate savings proportionally to the selected recommendations
+                total_available_impact = sum(
+                    suggestion.expectedImpact
+                    for suggestion in analysis_result.rankedSuggestions
+                )
+
+                selected_impact = sum(
+                    suggestion.expectedImpact
+                    for suggestion in selected_suggestions
+                )
+
+                if total_available_impact <= 0:
+                    estimated_savings = 0.0
+                else:
+                    full_possible_savings = max(current_fee - optimal_fee, 0)
+                    estimated_savings = full_possible_savings * (
+                            selected_impact / total_available_impact
+                    )
+
+                simulated_fee = current_fee - estimated_savings
+
+                total_current_fees += current_fee
+                total_simulated_fees += simulated_fee
+                processed_transactions += 1
+
+                # Group savings by suggestion type
+                for suggestion in selected_suggestions:
+                    if total_available_impact <= 0:
+                        condition_savings = 0.0
+                    else:
+                        condition_savings = estimated_savings * (
+                                suggestion.expectedImpact / selected_impact
+                        )
+
+                    current_value = savings_by_condition.get(
+                        suggestion.suggestionType,
+                        0.0,
+                    )
+
+                    savings_by_condition[suggestion.suggestionType] = (
+                            current_value + condition_savings
+                    )
+
+            except Exception as error:
+                # Keep processing remaining transactions even if one item fails
+                skipped_transactions.append(
+                    BulkSimulationSkippedTransaction(
+                        index=index,
+                        reason=str(error),
+                    )
+                )
+
+        total_current_fees = round(total_current_fees, 4)
+        total_simulated_fees = round(total_simulated_fees, 4)
+        total_savings = round(total_current_fees - total_simulated_fees, 4)
+
+        rounded_savings_by_condition = {
+            key: round(value, 4)
+            for key, value in savings_by_condition.items()
+        }
+
+        return BulkSimulationResponse(
+            totalCurrentFees=total_current_fees,
+            totalSimulatedFees=total_simulated_fees,
+            totalSavings=total_savings,
+            savingsByCondition=rounded_savings_by_condition,
+            processedTransactions=processed_transactions,
+            skippedTransactions=skipped_transactions,
+        )

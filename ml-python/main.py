@@ -13,6 +13,8 @@ from models.analysis_models import (
     TransactionSimulationResponse,
     PortfolioPatternResponse,
     AnomalyDetectionResponse,
+    BulkSimulationRequest,
+    BulkSimulationResponse,
 )
 
 
@@ -93,3 +95,16 @@ def detect_anomalies(
     """
 
     return ml_core.detect_anomalies(results)
+
+@app.post("/ml-core/simulate-bulk", response_model=BulkSimulationResponse)
+def simulate_bulk_scenarios(
+    request: BulkSimulationRequest,
+):
+    """
+    Simulate applying top recommendations across many transactions.
+
+    Returns total current fees, estimated simulated fees, total savings,
+    and savings grouped by recommendation type.
+    """
+
+    return ml_core.simulate_bulk_scenarios(request)

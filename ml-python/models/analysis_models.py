@@ -170,3 +170,46 @@ class AnomalyDetectionResponse(BaseModel):
 
     # Warnings for skipped checks or missing fields
     warnings: List[str]
+
+class BulkSimulationTransactionInput(BaseModel):
+    # Current result from the rule engine for this transaction
+    currentResult: RuleEngineResult
+
+    # Optimal/mock result used to calculate missed conditions and recommendations
+    optimalResult: RuleEngineResult
+
+
+class BulkSimulationRequest(BaseModel):
+    # List of transactions to simulate in bulk
+    transactions: List[BulkSimulationTransactionInput]
+
+    # Number of top ranked recommendations to apply per transaction
+    applyTopNRecommendations: int = 2
+
+
+class BulkSimulationSkippedTransaction(BaseModel):
+    # Index of the transaction in the input list
+    index: int
+
+    # Reason why this transaction was skipped
+    reason: str
+
+
+class BulkSimulationResponse(BaseModel):
+    # Sum of original/current fees for processed transactions
+    totalCurrentFees: float
+
+    # Sum of simulated fees after applying recommendations
+    totalSimulatedFees: float
+
+    # Difference between current and simulated fees
+    totalSavings: float
+
+    # Savings grouped by missed condition / suggestion type
+    savingsByCondition: Dict[str, float]
+
+    # Number of transactions successfully processed
+    processedTransactions: int
+
+    # Transactions skipped because they were invalid or failed processing
+    skippedTransactions: List[BulkSimulationSkippedTransaction]
