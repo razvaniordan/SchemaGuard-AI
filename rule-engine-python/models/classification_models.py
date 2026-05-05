@@ -114,8 +114,8 @@ class TransactionInput(BaseModel):
     three_ds: Optional[bool] = Field(default=None, alias="threeDS")
     eci: Optional[str] = None
 
-    auth_date: Optional[date | datetime] = Field(default=None, alias="authDate")
-    clearing_date: Optional[date | datetime] = Field(default=None, alias="clearingDate")
+    auth_date: Optional[datetime | date] = Field(default=None, alias="authDate")
+    clearing_date: Optional[datetime | date] = Field(default=None, alias="clearingDate")
 
     @field_validator("currency", "country", "merchant_country", "issuer_country", mode="before")
     @classmethod
