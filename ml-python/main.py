@@ -1,4 +1,5 @@
 from fastapi import FastAPI
+from typing import List
 from core.transaction_simulator import TransactionSimulator
 from core.missed_condition_detector import MissedConditionDetector
 from core.change_suggestion_engine import ChangeSuggestionEngine
@@ -10,6 +11,11 @@ from models.analysis_models import (
     ChangeSuggestionResponse,
     TransactionSimulationRequest,
     TransactionSimulationResponse,
+    PortfolioPatternResponse,
+    AnomalyDetectionResponse,
+    BulkSimulationRequest,
+    BulkSimulationResponse,
+    RootCauseAnalysisResponse,
 )
 
 
@@ -59,3 +65,60 @@ def analyze_with_ml_core(request: MLCoreRequest):
         request.currentResult,
         request.optimalResult,
     )
+
+@app.post("/ml-core/analyze-portfolio", response_model=PortfolioPatternResponse)
+def analyze_portfolio(
+    analyses: List[MissedConditionAnalysis],
+):
+    """
+    Analyze a portfolio of transaction analyses.
+
+    This endpoint aggregates missed conditions across multiple transactions
+    and returns high-level insights such as:
+    - Most common issue
+    - Highest impact driver
+    - Total savings opportunity
+    """
+
+    return ml_core.analyze_portfolio(analyses)
+
+@app.post("/ml-core/detect-anomalies", response_model=AnomalyDetectionResponse)
+def detect_anomalies(
+    results: List[RuleEngineResult],
+):
+    """
+    Detect abnormal transactions across multiple rule engine results.
+
+    This endpoint identifies:
+    - Fee outliers
+    - Category mismatches
+    - Timing anomalies
+    """
+
+    return ml_core.detect_anomalies(results)
+
+@app.post("/ml-core/simulate-bulk", response_model=BulkSimulationResponse)
+def simulate_bulk_scenarios(
+    request: BulkSimulationRequest,
+):
+    """
+    Simulate applying top recommendations across many transactions.
+
+    Returns total current fees, estimated simulated fees, total savings,
+    and savings grouped by recommendation type.
+    """
+
+    return ml_core.simulate_bulk_scenarios(request)
+
+@app.post("/ml-core/root-causes", response_model=RootCauseAnalysisResponse)
+def analyze_root_causes(
+    analyses: List[MissedConditionAnalysis],
+):
+    """
+    Analyze missed conditions across a portfolio and return ranked root causes.
+
+    This helps identify systemic optimization issues rather than isolated
+    transaction-level problems.
+    """
+
+    return ml_core.analyze_root_causes(analyses)

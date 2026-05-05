@@ -124,3 +124,122 @@ class MLCoreResponse(BaseModel):
 
     # Algorithm selected by the A/B testing layer
     algorithmUsed: str
+
+class PortfolioPatternResponse(BaseModel):
+    # Most frequently occurring missed condition across all transactions
+    mostCommonCondition: Optional[str]
+
+    # Condition that contributes the highest total financial impact
+    highestImpactCondition: Optional[str]
+
+    # Number of occurrences for each condition
+    conditionFrequency: Dict[str, int]
+
+    # Average impact per condition (mean savings opportunity)
+    averageImpactByCondition: Dict[str, float]
+
+    # Total potential savings aggregated per condition
+    totalSavingsOpportunity: Dict[str, float]
+
+class TransactionAnomaly(BaseModel):
+    # Optional transaction identifier if available in transaction data
+    transactionId: Optional[str]
+
+    # Type of anomaly detected, for example FEE_OUTLIER
+    anomalyType: str
+
+    # Expected fee rate or expected value
+    expectedFee: Optional[float]
+
+    # Actual fee rate or actual value
+    actualFee: Optional[float]
+
+    # Difference between actual and expected value
+    deviation: Optional[float]
+
+    # Severity level: LOW, MEDIUM, HIGH
+    severity: str
+
+    # Human-readable explanation of why this was flagged
+    explanation: str
+
+
+class AnomalyDetectionResponse(BaseModel):
+    # List of detected anomalies
+    anomalies: List[TransactionAnomaly]
+
+    # Warnings for skipped checks or missing fields
+    warnings: List[str]
+
+class BulkSimulationTransactionInput(BaseModel):
+    # Current result from the rule engine for this transaction
+    currentResult: RuleEngineResult
+
+    # Optimal/mock result used to calculate missed conditions and recommendations
+    optimalResult: RuleEngineResult
+
+
+class BulkSimulationRequest(BaseModel):
+    # List of transactions to simulate in bulk
+    transactions: List[BulkSimulationTransactionInput]
+
+    # Number of top ranked recommendations to apply per transaction
+    applyTopNRecommendations: int = 2
+
+
+class BulkSimulationSkippedTransaction(BaseModel):
+    # Index of the transaction in the input list
+    index: int
+
+    # Reason why this transaction was skipped
+    reason: str
+
+
+class BulkSimulationResponse(BaseModel):
+    # Sum of original/current fees for processed transactions
+    totalCurrentFees: float
+
+    # Sum of simulated fees after applying recommendations
+    totalSimulatedFees: float
+
+    # Difference between current and simulated fees
+    totalSavings: float
+
+    # Savings grouped by missed condition / suggestion type
+    savingsByCondition: Dict[str, float]
+
+    # Number of transactions successfully processed
+    processedTransactions: int
+
+    # Transactions skipped because they were invalid or failed processing
+    skippedTransactions: List[BulkSimulationSkippedTransaction]
+
+class RootCauseItem(BaseModel):
+    # Missed condition that appears as a systemic optimization driver
+    condition: str
+
+    # Number of times this condition appears across the portfolio
+    frequency: int
+
+    # Sum of all impact values for this condition
+    totalImpact: float
+
+    # Average impact for this condition
+    averageImpact: float
+
+    # Ranking score used to order root causes
+    score: float
+
+    # Confidence level based on available data volume
+    confidence: str
+
+    # Human-readable explanation of the likely root cause
+    rootCause: str
+
+
+class RootCauseAnalysisResponse(BaseModel):
+    # Ranked list of likely root causes
+    rootCauses: List[RootCauseItem]
+
+    # Warnings for empty or low-quality input
+    warnings: List[str]
