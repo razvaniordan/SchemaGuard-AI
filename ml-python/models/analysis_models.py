@@ -1,5 +1,7 @@
 from typing import Any, Dict, List, Optional
 from pydantic import BaseModel
+from datetime import datetime
+from typing import Optional
 
 
 class RuleEngineResult(BaseModel):
@@ -242,4 +244,24 @@ class RootCauseAnalysisResponse(BaseModel):
     rootCauses: List[RootCauseItem]
 
     # Warnings for empty or low-quality input
+    warnings: List[str]
+
+class HistoricalMLRecord(BaseModel):
+    transactionId: str
+    timestamp: datetime
+    features: Dict[str, Any]
+    labels: Optional[Dict[str, Any]] = None
+    currentRuleEngineResult: Dict[str, Any]
+    optimalRuleEngineResult: Dict[str, Any]
+    missedConditions: List[Dict[str, Any]]
+    rankedSuggestions: List[Dict[str, Any]]
+    simulatedSavings: Optional[float] = None
+    actualOutcome: Optional[Dict[str, Any]] = None
+    modelVersion: Optional[str] = None
+    algorithmUsed: str
+
+
+class HistoricalDataStoreResult(BaseModel):
+    stored: bool
+    transactionId: Optional[str]
     warnings: List[str]

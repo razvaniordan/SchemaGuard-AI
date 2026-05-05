@@ -66,3 +66,44 @@ def test_ml_core_runs_full_pipeline():
 
     # It should select an algorithm
     assert result.algorithmUsed in {"heuristic", "decision_tree"}
+
+def test_analyze_transaction_can_persist_history():
+    ml_core = MLCore()
+
+    current = RuleEngineResult(
+        category="standard",
+        feeRate=0.03,
+        feeAmount=3.0,
+        transaction={
+            "transactionId": "txn-history-1",
+            "amount": 100,
+            "threeDS": False,
+            "clearingDelayDays": 3,
+        },
+    )
+
+    optimal = RuleEngineResult(
+        category="optimized",
+        feeRate=0.01,
+        feeAmount=1.0,
+        transaction={
+            "transactionId": "txn-history-1",
+            "amount": 100,
+            "threeDS": True,
+            "clearingDelayDays": 1,
+        },
+    )
+
+    response = ml_core.analyze_transaction(
+        current,
+        optimal,
+        persist_history=True,
+        actual_outcome={"actualFeeAmount": 1.2, "actualSavings": 1.8},
+    )
+
+    records = ml_core._historical_store.get_all()
+
+    assert response.algorithmUsed is not None
+    assert len(records) == 1
+    assert records[0].transactionId == "txn-history-1"
+    assert records[0].labels["actualSavings"] == 1.8

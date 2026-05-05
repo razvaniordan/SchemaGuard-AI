@@ -10,6 +10,8 @@ from core.missed_condition_detector import MissedConditionDetector
 from core.change_suggestion_engine import ChangeSuggestionEngine
 from core.transaction_simulator import TransactionSimulator
 from core.root_cause_analyzer import RootCauseAnalyzer
+from core.historical_data_store import HistoricalDataStore
+from core.training_data_builder import TrainingDataBuilder
 from models.analysis_models import (
     MLCoreResponse,
     RankedSuggestion,
@@ -44,9 +46,12 @@ class MLCore:
         self.plugins = {}
 
     def analyze_transaction(
-        self,
-        current_result: RuleEngineResult,
-        optimal_result: RuleEngineResult,
+            self,
+            current_result: RuleEngineResult,
+            optimal_result: RuleEngineResult,
+            persist_history: bool = False,
+            actual_outcome: Dict[str, Any] | None = None,
+            model_version: str | None = None,
     ) -> MLCoreResponse:
         # Select algorithm using A/B testing framework
         algorithm = self._select_algorithm(current_result)
@@ -72,13 +77,33 @@ class MLCore:
         detected_patterns = self._detect_patterns(analysis.missedConditions)
 
         # Step 6: return full ML pipeline result
-        return MLCoreResponse(
+        response = MLCoreResponse(
             analysis=analysis,
             rankedSuggestions=ranked_suggestions,
             simulation=simulation,
             detectedPatterns=detected_patterns,
             algorithmUsed=algorithm,
         )
+
+        # Lazy initialization (NO __init__ changes)
+        if persist_history:
+            if not hasattr(self, "_historical_store"):
+                self._historical_store = HistoricalDataStore()
+
+            if not hasattr(self, "_training_builder"):
+                self._training_builder = TrainingDataBuilder()
+
+            record = self._training_builder.build_record(
+                current_result=current_result,
+                optimal_result=optimal_result,
+                ml_response=response,
+                actual_outcome=actual_outcome,
+                model_version=model_version,
+            )
+
+            self._historical_store.store(record)
+
+        return response
 
     def _load_config(self) -> Dict[str, Any]:
         # Find config file path
