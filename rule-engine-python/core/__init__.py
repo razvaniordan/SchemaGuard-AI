@@ -17,10 +17,17 @@ from .confidence_scorer import (
     MAX_CONFIDENCE,
     MIN_CONFIDENCE,
 )
+from .star_schema_etl import (
+    CHANNEL_DIMENSION_KEYS,
+    REGION_DIMENSION_KEYS,
+    UNKNOWN_DIMENSION_KEY,
+    StarSchemaETL,
+)
 
 __all__ = [
     "AuthenticationEvaluation",
     "AuthenticationEvaluator",
+    "CHANNEL_DIMENSION_KEYS",
     "ClearingTimeEvaluation",
     "ClearingTimeEvaluator",
     "ConditionEvaluator",
@@ -29,6 +36,9 @@ __all__ = [
     "DEFAULT_BASE_CONFIDENCE",
     "MAX_CONFIDENCE",
     "MIN_CONFIDENCE",
+    "REGION_DIMENSION_KEYS",
     "RuleEvaluationResult",
     "SECURE_ECI_VALUES",
+    "StarSchemaETL",
+    "UNKNOWN_DIMENSION_KEY",
 ]
