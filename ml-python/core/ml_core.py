@@ -9,6 +9,7 @@ from core.anomaly_detector import AnomalyDetector
 from core.missed_condition_detector import MissedConditionDetector
 from core.change_suggestion_engine import ChangeSuggestionEngine
 from core.transaction_simulator import TransactionSimulator
+from core.root_cause_analyzer import RootCauseAnalyzer
 from models.analysis_models import (
     MLCoreResponse,
     RankedSuggestion,
@@ -18,6 +19,7 @@ from models.analysis_models import (
     BulkSimulationRequest,
     BulkSimulationResponse,
     BulkSimulationSkippedTransaction,
+    RootCauseAnalysisResponse,
 )
 
 
@@ -453,3 +455,17 @@ class MLCore:
             processedTransactions=processed_transactions,
             skippedTransactions=skipped_transactions,
         )
+
+    def analyze_root_causes(
+            self,
+            analyses: List[Any],
+    ) -> RootCauseAnalysisResponse:
+        """
+        Identify systemic optimization drivers across a portfolio.
+
+        The analyzer is created only when this method is called.
+        """
+
+        analyzer = RootCauseAnalyzer()
+
+        return analyzer.analyze(analyses)

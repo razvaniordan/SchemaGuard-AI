@@ -15,6 +15,7 @@ from models.analysis_models import (
     AnomalyDetectionResponse,
     BulkSimulationRequest,
     BulkSimulationResponse,
+    RootCauseAnalysisResponse,
 )
 
 
@@ -108,3 +109,16 @@ def simulate_bulk_scenarios(
     """
 
     return ml_core.simulate_bulk_scenarios(request)
+
+@app.post("/ml-core/root-causes", response_model=RootCauseAnalysisResponse)
+def analyze_root_causes(
+    analyses: List[MissedConditionAnalysis],
+):
+    """
+    Analyze missed conditions across a portfolio and return ranked root causes.
+
+    This helps identify systemic optimization issues rather than isolated
+    transaction-level problems.
+    """
+
+    return ml_core.analyze_root_causes(analyses)

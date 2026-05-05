@@ -213,3 +213,33 @@ class BulkSimulationResponse(BaseModel):
 
     # Transactions skipped because they were invalid or failed processing
     skippedTransactions: List[BulkSimulationSkippedTransaction]
+
+class RootCauseItem(BaseModel):
+    # Missed condition that appears as a systemic optimization driver
+    condition: str
+
+    # Number of times this condition appears across the portfolio
+    frequency: int
+
+    # Sum of all impact values for this condition
+    totalImpact: float
+
+    # Average impact for this condition
+    averageImpact: float
+
+    # Ranking score used to order root causes
+    score: float
+
+    # Confidence level based on available data volume
+    confidence: str
+
+    # Human-readable explanation of the likely root cause
+    rootCause: str
+
+
+class RootCauseAnalysisResponse(BaseModel):
+    # Ranked list of likely root causes
+    rootCauses: List[RootCauseItem]
+
+    # Warnings for empty or low-quality input
+    warnings: List[str]
