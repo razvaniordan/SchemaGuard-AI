@@ -7,7 +7,7 @@ The actual ClassificationEngine implementation will be added in later subtasks.
 """
 
 from __future__ import annotations
-
+from core import ClassificationEngine, StarSchemaETL
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 
@@ -23,7 +23,8 @@ from rules import EU_PHASE_1_RULE_CATALOGUE
 APP_NAME = "SchemeGuard Rule Engine"
 APP_VERSION = "0.1.0"
 PHASE = "EU Phase 1"
-
+classification_engine = ClassificationEngine()
+star_schema_etl = StarSchemaETL()
 
 app = FastAPI(
     title=APP_NAME,
@@ -110,17 +111,27 @@ def categories() -> list[dict[str, object]]:
     response_model=ClassificationResponse,
     tags=["classification"],
 )
-def classify_transaction(request: ClassificationRequest) -> ClassificationResponse:
-    """Validate the request contract for future classification.
 
-    The ClassificationEngine is intentionally not implemented in Story 2.2.2.
-    It will be added in the following subtasks.
+
+@app.post(
+    "/classify-transaction",
+    response_model=ClassificationResponse,
+    tags=["classification"],
+)
+def classify_transaction(request: ClassificationRequest) -> ClassificationResponse:
+    """Classify one transaction and return analytics-ready fact DTO.
+
+    This endpoint is intended for Java backend integration.
     """
 
-    raise HTTPException(
-        status_code=501,
-        detail=(
-            "ClassificationEngine is not implemented yet. "
-            "Story 2.2.3+ will add priority-based rule evaluation."
-        ),
+    classification_result = classification_engine.classify(request.transaction)
+
+    fact_transaction = star_schema_etl.to_fact_transaction(
+        transaction=request.transaction,
+        classification=classification_result,
+    )
+
+    return ClassificationResponse(
+        result=classification_result,
+        factTransaction=fact_transaction,
     )

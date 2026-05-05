@@ -48,12 +48,14 @@ def test_categories_endpoint_returns_14_categories():
     assert categories[-1]["category"] == "Default Standard Category"
 
 
-def test_classify_transaction_endpoint_exists_but_is_not_implemented_yet():
+def test_classify_transaction_endpoint_returns_classification_result():
     response = client.post(
         "/classify-transaction",
         json={
             "transaction": {
                 "transactionId": "txn-1",
+                "merchantId": "merchant-1",
+                "cardId": "card-1",
                 "amount": "100.00",
                 "currency": "EUR",
                 "region": "EU",
@@ -62,15 +64,26 @@ def test_classify_transaction_endpoint_exists_but_is_not_implemented_yet():
                 "threeDS": True,
                 "eci": "05",
                 "mcc": "5411",
-                "authDate": "2026-05-05",
-                "clearingDate": "2026-05-06",
+                "authDate": "2026-05-05T10:00:00Z",
+                "clearingDate": "2026-05-06T10:00:00Z",
             }
         },
     )
 
-    assert response.status_code == 501
-    assert "ClassificationEngine is not implemented yet" in response.json()["detail"]
+    assert response.status_code == 200
 
+    payload = response.json()
+
+    assert payload["result"]["transactionId"] == "txn-1"
+    assert payload["result"]["categoryCode"] == "ECOM_SECURE_PREFERRED_CREDIT"
+    assert payload["result"]["rulePriority"] == 1
+    assert float(payload["result"]["confidence"]) == 1.0
+
+    assert payload["factTransaction"]["transactionId"] == "txn-1"
+    assert payload["factTransaction"]["categoryCode"] == "ECOM_SECURE_PREFERRED_CREDIT"
+    assert payload["factTransaction"]["dimChannelKey"] == 2
+    assert payload["factTransaction"]["dimRegionKey"] == 1
+    assert payload["factTransaction"]["dimDateKey"] == 20260505
 
 def test_classify_transaction_validates_request_body():
     response = client.post(

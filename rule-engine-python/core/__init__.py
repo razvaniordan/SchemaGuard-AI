@@ -9,6 +9,7 @@ from .clearing_time_evaluator import (
     ClearingTimeEvaluation,
     ClearingTimeEvaluator,
 )
+from .classification_engine import ClassificationEngine
 from .condition_evaluator import ConditionEvaluator, RuleEvaluationResult
 from .confidence_scorer import (
     ConfidenceScoreDetails,
@@ -30,6 +31,7 @@ __all__ = [
     "CHANNEL_DIMENSION_KEYS",
     "ClearingTimeEvaluation",
     "ClearingTimeEvaluator",
+    "ClassificationEngine",
     "ConditionEvaluator",
     "ConfidenceScoreDetails",
     "ConfidenceScorer",
