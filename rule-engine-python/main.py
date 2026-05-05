@@ -16,9 +16,9 @@ from models import (
     Channel,
     ClassificationRequest,
     ClassificationResponse,
-    EU_PHASE_1_CATEGORY_DEFINITIONS,
     Region,
 )
+from rules import EU_PHASE_1_RULE_CATALOGUE
 
 APP_NAME = "SchemeGuard Rule Engine"
 APP_VERSION = "0.1.0"
@@ -103,11 +103,7 @@ def categories() -> list[dict[str, object]]:
     This is useful for UI debugging and Java backend integration checks.
     """
 
-    return [
-        category.model_dump(by_alias=True, mode="json")
-        for category in EU_PHASE_1_CATEGORY_DEFINITIONS
-    ]
-
+    return EU_PHASE_1_RULE_CATALOGUE.as_api_response()
 
 @app.post(
     "/classify-transaction",
