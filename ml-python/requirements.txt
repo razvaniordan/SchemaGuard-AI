@@ -1,7 +1,11 @@
 fastapi
 uvicorn
 pydantic
-python-dotenv
-black
-flake8
+jinja2
+scikit-learn
+numpy
+redis
 pytest
+pandas
+scikit-learn
+pyyaml

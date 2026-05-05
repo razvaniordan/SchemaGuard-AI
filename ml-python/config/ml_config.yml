@@ -1,0 +1,13 @@
+scoring:
+  weights:
+    impact: 0.6
+    confidence: 0.3
+    difficulty: 0.1
+
+difficulty_scores:
+  Easy: 1.0
+  Medium: 0.6
+  Hard: 0.3
+
+ab_testing:
+  default_algorithm: heuristic
