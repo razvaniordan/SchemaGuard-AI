@@ -4,6 +4,7 @@
 
 from __future__ import annotations
 from .authentication_evaluator import AuthenticationEvaluator
+from .clearing_time_evaluator import ClearingTimeEvaluator
 import logging
 from dataclasses import dataclass
 from datetime import date, datetime, time, timezone
@@ -65,9 +66,13 @@ class ConditionEvaluator:
     def __init__(
         self,
         authentication_evaluator: AuthenticationEvaluator | None = None,
+        clearing_time_evaluator: ClearingTimeEvaluator | None = None,
     ) -> None:
         self.authentication_evaluator = (
             authentication_evaluator or AuthenticationEvaluator()
+        )
+        self.clearing_time_evaluator = (
+            clearing_time_evaluator or ClearingTimeEvaluator()
         )
 
     def evaluate_rule(
@@ -307,35 +312,38 @@ class ConditionEvaluator:
         transaction: TransactionInput,
         expected: ClearingTimeBand,
     ) -> ClassificationConditionResult:
+        clearing_evaluation = self.clearing_time_evaluator.evaluate(transaction)
+
         if expected == ClearingTimeBand.ANY:
             return self._not_applicable(
                 field="clearingTime",
                 expected=expected.value,
-                actual=self._actual_clearing_time_band(transaction).value,
+                actual=clearing_evaluation.band.value,
                 message="Rule accepts any clearing time.",
             )
 
-        actual = self._actual_clearing_time_band(transaction)
-
-        if actual == ClearingTimeBand.UNKNOWN:
+        if clearing_evaluation.band == ClearingTimeBand.UNKNOWN:
             return self._missing(
                 field="clearingTime",
                 expected=expected.value,
-                reason_code="MISSING_CLEARING_TIME",
+                reason_code=clearing_evaluation.reason_code or "MISSING_CLEARING_TIME",
+                message=clearing_evaluation.message,
             )
 
-        if actual == expected:
+        if clearing_evaluation.band == expected:
             return self._matched(
                 field="clearingTime",
                 expected=expected.value,
-                actual=actual.value,
+                actual=clearing_evaluation.band.value,
+                message=clearing_evaluation.message,
             )
 
         return self._not_matched(
             field="clearingTime",
             expected=expected.value,
-            actual=actual.value,
+            actual=clearing_evaluation.band.value,
             reason_code="CLEARING_TIME_MISMATCH",
+            message=clearing_evaluation.message,
         )
 
     def evaluate_card_type(
@@ -450,33 +458,9 @@ class ConditionEvaluator:
         self,
         transaction: TransactionInput,
     ) -> ClearingTimeBand:
-        """Derive clearing time band from authDate and clearingDate."""
+        """Derive clearing time band using the dedicated datetime evaluator."""
 
-        if transaction.auth_date is None or transaction.clearing_date is None:
-            logger.info(
-                "Missing clearing dates for transaction_id=%s",
-                transaction.transaction_id,
-            )
-            return ClearingTimeBand.UNKNOWN
-
-        auth_datetime = self._to_datetime(transaction.auth_date)
-        clearing_datetime = self._to_datetime(transaction.clearing_date)
-
-        if clearing_datetime < auth_datetime:
-            logger.warning(
-                "Clearing date before auth date for transaction_id=%s",
-                transaction.transaction_id,
-            )
-            return ClearingTimeBand.UNKNOWN
-
-        elapsed_seconds = (clearing_datetime - auth_datetime).total_seconds()
-        elapsed_hours = elapsed_seconds / 3600
-
-        if elapsed_hours <= 24:
-            return ClearingTimeBand.WITHIN_24H
-
-        return ClearingTimeBand.OVER_24H
-
+        return self.clearing_time_evaluator.evaluate(transaction).band
     def _actual_region(self, transaction: TransactionInput) -> Region:
         """Return explicit region or infer a simple EU/Cross-Border value."""
 
