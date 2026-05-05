@@ -17,3 +17,12 @@ active_models:
   recommendation_ranking: ranking-model-v1
   anomaly_detection: anomaly-model-v1
   root_cause_driver: root-cause-model-v1
+
+models:
+  impact_prediction:
+    enabled: true
+    fallback_to_heuristic: true
+    confidence_threshold: 0.65
+    min_training_records: 20
+    random_state: 42
+    artifact_path: models/artifacts/impact-model-v1.joblib

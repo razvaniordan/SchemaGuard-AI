@@ -13,6 +13,7 @@ from core.root_cause_analyzer import RootCauseAnalyzer
 from core.historical_data_store import HistoricalDataStore
 from core.training_data_builder import TrainingDataBuilder
 from core.model_registry import ModelRegistry, ModelMetadata
+from core.impact_prediction_model import ImpactPredictionModel
 from models.analysis_models import (
     MLCoreResponse,
     RankedSuggestion,
@@ -608,3 +609,66 @@ class MLCore:
             version=model_version,
             available_features=available_features,
         )
+
+    def _get_impact_prediction_model(self) -> ImpactPredictionModel:
+        """
+        Lazy-load impact prediction model.
+
+        This avoids modifying __init__ and only creates the model when needed.
+        """
+
+        if not hasattr(self, "_impact_prediction_model"):
+            model_config = self.config.get("models", {}).get("impact_prediction", {})
+
+            self._impact_prediction_model = ImpactPredictionModel(
+                model_version="impact-model-v1",
+                confidence_threshold=model_config.get("confidence_threshold", 0.65),
+                min_training_records=model_config.get("min_training_records", 20),
+                random_state=model_config.get("random_state", 42),
+            )
+
+            artifact_path = model_config.get(
+                "artifact_path",
+                "models/artifacts/impact-model-v1.joblib",
+            )
+
+            try:
+                self._impact_prediction_model.load(artifact_path)
+            except Exception:
+                # Missing model artifact is allowed.
+                # Prediction will safely fallback to heuristic.
+                pass
+
+        return self._impact_prediction_model
+
+    def predict_impact(
+        self,
+        features: Dict[str, Any],
+        heuristic_impact: float,
+    ):
+        """
+        Predict missed-condition impact.
+
+        Uses ML model when enabled and available.
+        Falls back to heuristic impact otherwise.
+        """
+
+        model_config = self.config.get("models", {}).get("impact_prediction", {})
+
+        if not model_config.get("enabled", False):
+            return {
+                "predictedImpact": heuristic_impact,
+                "modelConfidence": 0.0,
+                "modelVersion": None,
+                "fallbackUsed": True,
+                "warnings": ["Impact prediction model disabled."],
+            }
+
+        model = self._get_impact_prediction_model()
+
+        result = model.predict(
+            features=features,
+            heuristic_impact=heuristic_impact,
+        )
+
+        return result.model_dump()

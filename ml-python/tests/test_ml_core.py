@@ -1,6 +1,6 @@
 from core.ml_core import MLCore
 from models.analysis_models import RuleEngineResult
-
+from core.model_registry import ModelMetadata, ModelRegistry
 
 def test_ml_core_runs_full_pipeline():
     # Create ML core orchestrator
@@ -125,4 +125,43 @@ def test_ml_core_load_active_model_falls_back_when_artifact_missing():
 
     assert result.loaded is False
     assert result.metadata.version == "impact-model-v1"
+    assert "Model artifact not found" in result.warnings[0]
+
+def test_ml_core_load_active_model_falls_back_when_artifact_missing():
+    ml_core = MLCore()
+
+    registry = ModelRegistry()
+    registry.register_model(
+        ModelMetadata(
+            name="impact_prediction",
+            version="impact-model-v1",
+            trainedDate="2026-05-05",
+            featureSchema=[
+                "amount",
+                "feeRate",
+                "feeAmount",
+                "category",
+                "threeDS",
+                "clearingDelayDays",
+            ],
+            metrics={},
+            artifactPath="missing/path/impact-model-v1.joblib",
+        )
+    )
+
+    ml_core._model_registry = registry
+
+    result = ml_core.load_active_model(
+        model_key="impact_prediction",
+        available_features=[
+            "amount",
+            "feeRate",
+            "feeAmount",
+            "category",
+            "threeDS",
+            "clearingDelayDays",
+        ],
+    )
+
+    assert result.loaded is False
     assert "Model artifact not found" in result.warnings[0]
