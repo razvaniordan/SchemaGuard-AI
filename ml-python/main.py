@@ -1,4 +1,5 @@
 from fastapi import FastAPI
+from typing import List
 from core.transaction_simulator import TransactionSimulator
 from core.missed_condition_detector import MissedConditionDetector
 from core.change_suggestion_engine import ChangeSuggestionEngine
@@ -10,6 +11,7 @@ from models.analysis_models import (
     ChangeSuggestionResponse,
     TransactionSimulationRequest,
     TransactionSimulationResponse,
+    PortfolioPatternResponse,
 )
 
 
@@ -59,3 +61,19 @@ def analyze_with_ml_core(request: MLCoreRequest):
         request.currentResult,
         request.optimalResult,
     )
+
+@app.post("/ml-core/analyze-portfolio", response_model=PortfolioPatternResponse)
+def analyze_portfolio(
+    analyses: List[MissedConditionAnalysis],
+):
+    """
+    Analyze a portfolio of transaction analyses.
+
+    This endpoint aggregates missed conditions across multiple transactions
+    and returns high-level insights such as:
+    - Most common issue
+    - Highest impact driver
+    - Total savings opportunity
+    """
+
+    return ml_core.analyze_portfolio(analyses)

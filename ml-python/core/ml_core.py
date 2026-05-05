@@ -13,6 +13,7 @@ from models.analysis_models import (
     MLCoreResponse,
     RankedSuggestion,
     RuleEngineResult,
+    PortfolioPatternResponse,
 )
 
 
@@ -230,3 +231,64 @@ class MLCore:
     ) -> None:
         # Register future ML algorithm plugin
         self.plugins[name] = plugin
+
+    def analyze_portfolio(
+            self,
+            analyses: List[Any],
+    ) -> PortfolioPatternResponse:
+        rows = []
+
+        for item in analyses:
+            analysis = item.analysis if hasattr(item, "analysis") else item
+
+            for condition in analysis.missedConditions:
+                rows.append(
+                    {
+                        "condition": condition.condition,
+                        "impact": condition.impact,
+                    }
+                )
+
+        if not rows:
+            return PortfolioPatternResponse(
+                mostCommonCondition=None,
+                highestImpactCondition=None,
+                conditionFrequency={},
+                averageImpactByCondition={},
+                totalSavingsOpportunity={},
+            )
+
+        df = pd.DataFrame(rows)
+
+        frequency = df["condition"].value_counts().to_dict()
+
+        average_impact = (
+            df.groupby("condition")["impact"]
+            .mean()
+            .round(4)
+            .to_dict()
+        )
+
+        total_savings = (
+            df.groupby("condition")["impact"]
+            .sum()
+            .round(4)
+            .to_dict()
+        )
+
+        most_common_condition = df["condition"].value_counts().idxmax()
+
+        highest_impact_condition = (
+            df.groupby("condition")["impact"]
+            .sum()
+            .idxmax()
+        )
+
+        return PortfolioPatternResponse(
+            mostCommonCondition=most_common_condition,
+            highestImpactCondition=highest_impact_condition,
+            conditionFrequency=frequency,
+            averageImpactByCondition=average_impact,
+            totalSavingsOpportunity=total_savings,
+        )
+

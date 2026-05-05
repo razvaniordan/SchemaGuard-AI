@@ -124,3 +124,19 @@ class MLCoreResponse(BaseModel):
 
     # Algorithm selected by the A/B testing layer
     algorithmUsed: str
+
+class PortfolioPatternResponse(BaseModel):
+    # Most frequently occurring missed condition across all transactions
+    mostCommonCondition: Optional[str]
+
+    # Condition that contributes the highest total financial impact
+    highestImpactCondition: Optional[str]
+
+    # Number of occurrences for each condition
+    conditionFrequency: Dict[str, int]
+
+    # Average impact per condition (mean savings opportunity)
+    averageImpactByCondition: Dict[str, float]
+
+    # Total potential savings aggregated per condition
+    totalSavingsOpportunity: Dict[str, float]
