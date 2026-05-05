@@ -1,8 +1,9 @@
 """Generic condition evaluator for interchange classification rules.
 """
 
-from __future__ import annotations
 
+from __future__ import annotations
+from .authentication_evaluator import AuthenticationEvaluator
 import logging
 from dataclasses import dataclass
 from datetime import date, datetime, time, timezone
@@ -23,7 +24,6 @@ from models import (
 logger = logging.getLogger(__name__)
 
 
-SECURE_ECI_VALUES = {"05", "06"}
 
 EU_COUNTRY_CODES = {
     "AT", "BE", "BG", "HR", "CY", "CZ", "DK", "EE", "FI", "FR",
@@ -61,6 +61,14 @@ class RuleEvaluationResult:
 
 class ConditionEvaluator:
     """Evaluate transaction attributes against a category definition."""
+
+    def __init__(
+        self,
+        authentication_evaluator: AuthenticationEvaluator | None = None,
+    ) -> None:
+        self.authentication_evaluator = (
+            authentication_evaluator or AuthenticationEvaluator()
+        )
 
     def evaluate_rule(
         self,
@@ -252,11 +260,13 @@ class ConditionEvaluator:
         transaction: TransactionInput,
         expected: AuthStatus,
     ) -> ClassificationConditionResult:
+        auth_evaluation = self.authentication_evaluator.evaluate(transaction)
+
         if expected == AuthStatus.ANY:
             return self._not_applicable(
                 field="authStatus",
                 expected=expected.value,
-                actual=self._actual_auth_status(transaction).value,
+                actual=auth_evaluation.status.value,
                 message="Rule accepts any authentication status.",
             )
 
@@ -264,31 +274,32 @@ class ConditionEvaluator:
             return self._not_applicable(
                 field="authStatus",
                 expected=expected.value,
-                actual=self._actual_auth_status(transaction).value,
+                actual=auth_evaluation.status.value,
                 message="Authentication is not applicable for this rule.",
             )
 
-        actual = self._actual_auth_status(transaction)
-
-        if actual == AuthStatus.UNKNOWN:
+        if auth_evaluation.status == AuthStatus.UNKNOWN:
             return self._missing(
                 field="authStatus",
                 expected=expected.value,
-                reason_code="MISSING_AUTH_STATUS",
+                reason_code=auth_evaluation.reason_code or "MISSING_AUTH_STATUS",
+                message=auth_evaluation.message,
             )
 
-        if actual == expected:
+        if auth_evaluation.status == expected:
             return self._matched(
                 field="authStatus",
                 expected=expected.value,
-                actual=actual.value,
+                actual=auth_evaluation.status.value,
+                message=auth_evaluation.message,
             )
 
         return self._not_matched(
             field="authStatus",
             expected=expected.value,
-            actual=actual.value,
+            actual=auth_evaluation.status.value,
             reason_code="AUTH_STATUS_MISMATCH",
+            message=auth_evaluation.message,
         )
 
     def evaluate_clearing_time(
@@ -432,27 +443,9 @@ class ConditionEvaluator:
         )
 
     def _actual_auth_status(self, transaction: TransactionInput) -> AuthStatus:
-        """Derive authentication status from ECI and 3DS flag.
+        """Derive authentication status using the dedicated 3DS/ECI evaluator."""
 
-        This is intentionally simple for 2.2.4. The dedicated 3DS logic will
-        be refined in Story 2.2.6.
-        """
-
-        if transaction.eci in SECURE_ECI_VALUES:
-            return AuthStatus.SECURE
-
-        if transaction.three_ds is True:
-            return AuthStatus.SECURE
-
-        if transaction.three_ds is False or transaction.eci is not None:
-            return AuthStatus.NON_SECURE
-
-        logger.info(
-            "Missing authentication data for transaction_id=%s",
-            transaction.transaction_id,
-        )
-        return AuthStatus.UNKNOWN
-
+        return self.authentication_evaluator.evaluate(transaction).status
     def _actual_clearing_time_band(
         self,
         transaction: TransactionInput,
