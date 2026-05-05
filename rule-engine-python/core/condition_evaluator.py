@@ -3,6 +3,7 @@
 
 
 from __future__ import annotations
+from strategies import CardTypeStrategyRegistry
 from .authentication_evaluator import AuthenticationEvaluator
 from .clearing_time_evaluator import ClearingTimeEvaluator
 import logging
@@ -67,12 +68,16 @@ class ConditionEvaluator:
         self,
         authentication_evaluator: AuthenticationEvaluator | None = None,
         clearing_time_evaluator: ClearingTimeEvaluator | None = None,
+        card_type_strategy_registry: CardTypeStrategyRegistry | None = None,
     ) -> None:
         self.authentication_evaluator = (
             authentication_evaluator or AuthenticationEvaluator()
         )
         self.clearing_time_evaluator = (
             clearing_time_evaluator or ClearingTimeEvaluator()
+        )
+        self.card_type_strategy_registry = (
+            card_type_strategy_registry or CardTypeStrategyRegistry()
         )
 
     def evaluate_rule(
@@ -351,33 +356,43 @@ class ConditionEvaluator:
         transaction: TransactionInput,
         expected: CardType,
     ) -> ClassificationConditionResult:
-        if expected == CardType.ANY:
+        """Evaluate card type using the configured strategy registry."""
+
+        card_type_evaluation = self.card_type_strategy_registry.evaluate(
+            transaction=transaction,
+            expected=expected,
+        )
+
+        if card_type_evaluation.outcome == ConditionOutcome.NOT_APPLICABLE:
             return self._not_applicable(
                 field="cardType",
-                expected=expected.value,
-                actual=self._enum_value(transaction.card_type),
-                message="Rule accepts any card type.",
+                expected=card_type_evaluation.expected.value,
+                actual=self._enum_value(card_type_evaluation.actual),
+                message=card_type_evaluation.message,
             )
 
-        if transaction.card_type is None:
+        if card_type_evaluation.outcome == ConditionOutcome.MISSING:
             return self._missing(
                 field="cardType",
-                expected=expected.value,
-                reason_code="MISSING_CARD_TYPE",
+                expected=card_type_evaluation.expected.value,
+                reason_code=card_type_evaluation.reason_code or "MISSING_CARD_TYPE",
+                message=card_type_evaluation.message,
             )
 
-        if transaction.card_type == expected:
+        if card_type_evaluation.outcome == ConditionOutcome.MATCHED:
             return self._matched(
                 field="cardType",
-                expected=expected.value,
-                actual=transaction.card_type.value,
+                expected=card_type_evaluation.expected.value,
+                actual=self._enum_value(card_type_evaluation.actual),
+                message=card_type_evaluation.message,
             )
 
         return self._not_matched(
             field="cardType",
-            expected=expected.value,
-            actual=transaction.card_type.value,
-            reason_code="CARD_TYPE_MISMATCH",
+            expected=card_type_evaluation.expected.value,
+            actual=self._enum_value(card_type_evaluation.actual),
+            reason_code=card_type_evaluation.reason_code or "CARD_TYPE_MISMATCH",
+            message=card_type_evaluation.message,
         )
 
     def evaluate_region(
