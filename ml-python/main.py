@@ -12,6 +12,7 @@ from models.analysis_models import (
     TransactionSimulationRequest,
     TransactionSimulationResponse,
     PortfolioPatternResponse,
+    AnomalyDetectionResponse,
 )
 
 
@@ -77,3 +78,18 @@ def analyze_portfolio(
     """
 
     return ml_core.analyze_portfolio(analyses)
+
+@app.post("/ml-core/detect-anomalies", response_model=AnomalyDetectionResponse)
+def detect_anomalies(
+    results: List[RuleEngineResult],
+):
+    """
+    Detect abnormal transactions across multiple rule engine results.
+
+    This endpoint identifies:
+    - Fee outliers
+    - Category mismatches
+    - Timing anomalies
+    """
+
+    return ml_core.detect_anomalies(results)

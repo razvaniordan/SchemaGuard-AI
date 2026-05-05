@@ -5,7 +5,7 @@ import numpy as np
 import pandas as pd
 import yaml
 from sklearn.tree import DecisionTreeClassifier
-
+from core.anomaly_detector import AnomalyDetector
 from core.missed_condition_detector import MissedConditionDetector
 from core.change_suggestion_engine import ChangeSuggestionEngine
 from core.transaction_simulator import TransactionSimulator
@@ -14,6 +14,7 @@ from models.analysis_models import (
     RankedSuggestion,
     RuleEngineResult,
     PortfolioPatternResponse,
+    AnomalyDetectionResponse
 )
 
 
@@ -291,4 +292,28 @@ class MLCore:
             averageImpactByCondition=average_impact,
             totalSavingsOpportunity=total_savings,
         )
+
+    def detect_anomalies(
+            self,
+            results: List[RuleEngineResult],
+    ) -> AnomalyDetectionResponse:
+        """
+        Detect abnormal transactions across a transaction portfolio.
+
+        This version does NOT rely on __init__.
+        It creates the AnomalyDetector on demand.
+
+        Pros:
+        - No need to modify constructor
+        - Cleaner for optional/feature-based components
+
+        Cons:
+        - Slight overhead (negligible for this use case)
+        """
+
+        # Instantiate detector locally (instead of using self.anomaly_detector)
+        detector = AnomalyDetector()
+
+        # Delegate detection logic
+        return detector.detect(results)
 

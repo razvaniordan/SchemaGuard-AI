@@ -140,3 +140,33 @@ class PortfolioPatternResponse(BaseModel):
 
     # Total potential savings aggregated per condition
     totalSavingsOpportunity: Dict[str, float]
+
+class TransactionAnomaly(BaseModel):
+    # Optional transaction identifier if available in transaction data
+    transactionId: Optional[str]
+
+    # Type of anomaly detected, for example FEE_OUTLIER
+    anomalyType: str
+
+    # Expected fee rate or expected value
+    expectedFee: Optional[float]
+
+    # Actual fee rate or actual value
+    actualFee: Optional[float]
+
+    # Difference between actual and expected value
+    deviation: Optional[float]
+
+    # Severity level: LOW, MEDIUM, HIGH
+    severity: str
+
+    # Human-readable explanation of why this was flagged
+    explanation: str
+
+
+class AnomalyDetectionResponse(BaseModel):
+    # List of detected anomalies
+    anomalies: List[TransactionAnomaly]
+
+    # Warnings for skipped checks or missing fields
+    warnings: List[str]
