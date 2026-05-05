@@ -107,3 +107,22 @@ def test_analyze_transaction_can_persist_history():
     assert len(records) == 1
     assert records[0].transactionId == "txn-history-1"
     assert records[0].labels["actualSavings"] == 1.8
+
+def test_ml_core_load_active_model_falls_back_when_artifact_missing():
+    ml_core = MLCore()
+
+    result = ml_core.load_active_model(
+        model_key="impact_prediction",
+        available_features=[
+            "amount",
+            "feeRate",
+            "feeAmount",
+            "category",
+            "threeDS",
+            "clearingDelayDays",
+        ],
+    )
+
+    assert result.loaded is False
+    assert result.metadata.version == "impact-model-v1"
+    assert "Model artifact not found" in result.warnings[0]

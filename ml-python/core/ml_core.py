@@ -12,6 +12,7 @@ from core.transaction_simulator import TransactionSimulator
 from core.root_cause_analyzer import RootCauseAnalyzer
 from core.historical_data_store import HistoricalDataStore
 from core.training_data_builder import TrainingDataBuilder
+from core.model_registry import ModelRegistry, ModelMetadata
 from models.analysis_models import (
     MLCoreResponse,
     RankedSuggestion,
@@ -494,3 +495,116 @@ class MLCore:
         analyzer = RootCauseAnalyzer()
 
         return analyzer.analyze(analyses)
+
+    def _get_model_registry(self) -> ModelRegistry:
+        """
+        Lazy-load the model registry.
+
+        This avoids modifying __init__ and keeps Story 4.11 optional.
+        The registry is in-memory for now and can later be backed by files,
+        database records, or MLflow.
+        """
+
+        if not hasattr(self, "_model_registry"):
+            self._model_registry = ModelRegistry()
+
+            # Register placeholder metadata for Phase 2 models.
+            # The artifacts may not exist yet, so loading will safely fallback.
+            self._model_registry.register_model(
+                ModelMetadata(
+                    name="impact_prediction",
+                    version="impact-model-v1",
+                    trainedDate="2026-05-05",
+                    featureSchema=[
+                        "amount",
+                        "feeRate",
+                        "feeAmount",
+                        "category",
+                        "threeDS",
+                        "clearingDelayDays",
+                    ],
+                    metrics={},
+                    artifactPath="models/artifacts/impact-model-v1.joblib",
+                )
+            )
+
+            self._model_registry.register_model(
+                ModelMetadata(
+                    name="recommendation_ranking",
+                    version="ranking-model-v1",
+                    trainedDate="2026-05-05",
+                    featureSchema=[
+                        "amount",
+                        "expectedImpact",
+                        "difficulty",
+                        "condition",
+                    ],
+                    metrics={},
+                    artifactPath="models/artifacts/ranking-model-v1.joblib",
+                )
+            )
+
+            self._model_registry.register_model(
+                ModelMetadata(
+                    name="anomaly_detection",
+                    version="anomaly-model-v1",
+                    trainedDate="2026-05-05",
+                    featureSchema=[
+                        "amount",
+                        "feeRate",
+                        "feeAmount",
+                        "category",
+                        "clearingDelayDays",
+                    ],
+                    metrics={},
+                    artifactPath="models/artifacts/anomaly-model-v1.joblib",
+                )
+            )
+
+            self._model_registry.register_model(
+                ModelMetadata(
+                    name="root_cause_driver",
+                    version="root-cause-model-v1",
+                    trainedDate="2026-05-05",
+                    featureSchema=[
+                        "condition",
+                        "frequency",
+                        "averageImpact",
+                        "totalImpact",
+                    ],
+                    metrics={},
+                    artifactPath="models/artifacts/root-cause-model-v1.joblib",
+                )
+            )
+
+        return self._model_registry
+
+    def load_active_model(
+        self,
+        model_key: str,
+        available_features: List[str],
+    ):
+        """
+        Load an active model from config.
+
+        If the configured model is missing, invalid, or incompatible,
+        this method returns a safe fallback result instead of crashing MLCore.
+        """
+
+        active_models = self.config.get("active_models", {})
+        model_version = active_models.get(model_key)
+
+        if model_version is None:
+            registry = self._get_model_registry()
+
+            return registry.load_model(
+                version="__missing__",
+                available_features=available_features,
+            )
+
+        registry = self._get_model_registry()
+
+        return registry.load_model(
+            version=model_version,
+            available_features=available_features,
+        )

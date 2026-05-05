@@ -11,3 +11,9 @@ difficulty_scores:
 
 ab_testing:
   default_algorithm: heuristic
+
+active_models:
+  impact_prediction: impact-model-v1
+  recommendation_ranking: ranking-model-v1
+  anomaly_detection: anomaly-model-v1
+  root_cause_driver: root-cause-model-v1
