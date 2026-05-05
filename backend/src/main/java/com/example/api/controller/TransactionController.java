@@ -1,7 +1,7 @@
 package com.example.api.controller;
 
-import com.example.api.dto.TransactionRequest;
-import com.example.api.dto.TransactionResponse;
+import com.example.api.dto.request.TransactionRequest;
+import com.example.api.dto.response.TransactionResponse;
 import com.example.api.service.TransactionService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;

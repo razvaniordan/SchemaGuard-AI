@@ -1,7 +1,8 @@
 package com.example.api.controller;
 
 import com.example.api.dto.LoginRequest;
-import com.example.api.dto.TransactionRequest;
+import com.example.api.dto.request.TransactionRequest;
+import com.example.api.entity.Transaction;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.Test;
@@ -12,6 +13,7 @@ import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
 
 import java.math.BigDecimal;
+import java.time.LocalDateTime;
 
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -55,7 +57,23 @@ class ApiFrameworkApplicationTests {
         JsonNode json = objectMapper.readTree(loginResponse);
         String token = json.get("token").asText();
 
-        var request = new TransactionRequest("Demo Merchant", "5411", new BigDecimal("25.50"), "USD");
+        var request = new TransactionRequest(
+                1L, // clientId
+                1L, // merchantId
+                1L, // cardId
+                1L, // acquiringPartnerId
+                1L, // issuerBankId
+                1L, // cardNetworkId
+                "EU", // regionCode
+                BigDecimal.valueOf(100.00),
+                "EUR",
+                Transaction.TransactionChannel.ECOMMERCE,
+                LocalDateTime.now(),
+                null,
+                Transaction.TransactionStatus.APPROVED,
+                "N",
+                null
+        );
         mockMvc.perform(post("/api/transactions")
                         .header("Authorization", "Bearer " + token)
                         .contentType(MediaType.APPLICATION_JSON)

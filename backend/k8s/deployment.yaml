@@ -1,0 +1,46 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: schemeguard-ai-backend
+  labels:
+    app: schemeguard-ai-backend
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: schemeguard-ai-backend
+  template:
+    metadata:
+      labels:
+        app: schemeguard-ai-backend
+    spec:
+      containers:
+        - name: schemeguard-ai-backend
+          image: REPLACE_WITH_YOUR_REGISTRY/schemeguard-ai-backend:0.1.0
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 8080
+          env:
+            - name: SPRING_PROFILES_ACTIVE
+              value: "rancher"
+          readinessProbe:
+            httpGet:
+              path: /actuator/health/readiness
+              port: 8080
+            initialDelaySeconds: 20
+            periodSeconds: 10
+            failureThreshold: 6
+          livenessProbe:
+            httpGet:
+              path: /actuator/health/liveness
+              port: 8080
+            initialDelaySeconds: 40
+            periodSeconds: 20
+            failureThreshold: 3
+          resources:
+            requests:
+              cpu: "250m"
+              memory: "512Mi"
+            limits:
+              cpu: "500m"
+              memory: "1024Mi"
