@@ -38,6 +38,7 @@ EU_COUNTRY_CODES = {
 class RuleEvaluationResult:
     """Result of evaluating one transaction against one category rule."""
 
+    transaction_id: str | None
     rule: CategoryDefinition
     is_match: bool
     condition_results: list[ClassificationConditionResult]
@@ -139,6 +140,7 @@ class ConditionEvaluator:
         )
 
         return RuleEvaluationResult(
+            transaction_id=transaction.transaction_id,
             rule=rule,
             is_match=is_match,
             condition_results=condition_results,
