@@ -1,5 +1,3 @@
-USE schemaguard_ai;
-
 START TRANSACTION;
 
 -- fee_percentage stores the human percentage value, e.g. 1.2500 means 1.25%.
