@@ -16,6 +16,7 @@ from core.training_data_builder import TrainingDataBuilder
 from core.model_registry import ModelRegistry, ModelMetadata
 from core.ml_anomaly_detection_model import MLAnomalyDetectionModel
 from core.impact_prediction_model import ImpactPredictionModel
+from core.root_cause_driver_model import RootCauseDriverModel
 from models.analysis_models import (
     MLCoreResponse,
     RankedSuggestion,
@@ -539,8 +540,48 @@ class MLCore:
         """
 
         analyzer = RootCauseAnalyzer()
+        phase1_response = analyzer.analyze(analyses)
 
-        return analyzer.analyze(analyses)
+        model_config = self.config.get("models", {}).get("root_cause_driver", {})
+
+        if not model_config.get("enabled", False):
+            return phase1_response
+
+        model = self._get_root_cause_driver_model()
+
+        # If no ML model is available, keep Phase 1 response unchanged.
+        if model.pipeline is None:
+            return phase1_response
+
+        enhanced_root_causes = []
+
+        for cause in phase1_response.rootCauses:
+            evidence = model.explain_condition(cause.condition)
+
+            cause_dict = cause.model_dump()
+
+            cause_dict["mlDriverScore"] = evidence.mlDriverScore
+            cause_dict["confidence"] = evidence.confidence
+            cause_dict["explanation"] = evidence.explanation
+            cause_dict["modelVersion"] = evidence.modelVersion
+
+            combined_score = (
+                                     cause.frequency * cause.averageImpact
+                             ) + evidence.mlDriverScore
+
+            cause_dict["combinedScore"] = round(combined_score, 4)
+
+            enhanced_root_causes.append(cause_dict)
+
+        enhanced_root_causes.sort(
+            key=lambda item: item.get("combinedScore", 0),
+            reverse=True,
+        )
+
+        return RootCauseAnalysisResponse(
+            rootCauses=enhanced_root_causes,
+            warnings=phase1_response.warnings,
+        )
 
     def _get_model_registry(self) -> ModelRegistry:
         """
@@ -895,3 +936,35 @@ class MLCore:
                 self._ml_anomaly_model.pipeline = None
 
         return self._ml_anomaly_model
+
+    def _get_root_cause_driver_model(self) -> RootCauseDriverModel:
+        """
+        Lazy-load root cause driver model.
+
+        This avoids modifying __init__.
+        If the model artifact is missing, existing Phase 1 logic remains fallback.
+        """
+
+        if not hasattr(self, "_root_cause_driver_model"):
+            model_config = self.config.get("models", {}).get("root_cause_driver", {})
+
+            self._root_cause_driver_model = RootCauseDriverModel(
+                model_version="root-cause-model-v1",
+                min_training_records=model_config.get("min_training_records", 100),
+                high_loss_threshold=model_config.get("high_loss_threshold", 5.0),
+                random_state=model_config.get("random_state", 42),
+            )
+
+            artifact_path = model_config.get(
+                "artifact_path",
+                "models/artifacts/root-cause-model-v1.joblib",
+            )
+
+            try:
+                self._root_cause_driver_model.load(artifact_path)
+            except Exception:
+                # Missing or incompatible artifact is allowed.
+                # Existing Phase 1 root cause analyzer remains fallback.
+                self._root_cause_driver_model.pipeline = None
+
+        return self._root_cause_driver_model
