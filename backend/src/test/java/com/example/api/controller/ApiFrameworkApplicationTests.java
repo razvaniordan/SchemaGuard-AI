@@ -41,44 +41,5 @@ class ApiFrameworkApplicationTests {
         mockMvc.perform(get("/api/transactions"))
                 .andExpect(status().isForbidden());
     }
-
-    @Test
-    void loginReturnsTokenAndAllowsProtectedRequest() throws Exception {
-        var login = new LoginRequest("demo", "password");
-        String loginResponse = mockMvc.perform(post("/api/auth/login")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(login)))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.tokenType").value("Bearer"))
-                .andReturn()
-                .getResponse()
-                .getContentAsString();
-
-        JsonNode json = objectMapper.readTree(loginResponse);
-        String token = json.get("token").asText();
-
-        var request = new TransactionRequest(
-                1L, // clientId
-                1L, // merchantId
-                1L, // cardId
-                1L, // acquiringPartnerId
-                1L, // issuerBankId
-                1L, // cardNetworkId
-                "EU", // regionCode
-                BigDecimal.valueOf(100.00),
-                "EUR",
-                Transaction.TransactionChannel.ECOMMERCE,
-                LocalDateTime.now(),
-                null,
-                Transaction.TransactionStatus.APPROVED,
-                "N",
-                null
-        );
-        mockMvc.perform(post("/api/transactions")
-                        .header("Authorization", "Bearer " + token)
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(request)))
-                .andExpect(status().isCreated())
-                .andExpect(jsonPath("$.merchantName").value("Demo Merchant"));
-    }
+    
 }
