@@ -238,6 +238,18 @@ class RootCauseItem(BaseModel):
     # Human-readable explanation of the likely root cause
     rootCause: str
 
+    # ML driver score from trained root-cause model
+    mlDriverScore: Optional[float] = None
+
+    # Final score combining heuristic score + ML driver score
+    combinedScore: Optional[float] = None
+
+    # ML model version used for root-cause evidence
+    modelVersion: Optional[str] = None
+
+    # ML explanation/evidence
+    explanation: Optional[str] = None
+
 
 class RootCauseAnalysisResponse(BaseModel):
     # Ranked list of likely root causes
