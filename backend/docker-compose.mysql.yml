@@ -1,0 +1,40 @@
+services:
+  mysql:
+    image: mysql:8.4
+    container_name: schemeguard-ai-mysql
+    restart: unless-stopped
+    environment:
+      MYSQL_DATABASE: schemeguard_ai
+      MYSQL_USER: schemeguard
+      MYSQL_PASSWORD: schemeguard
+      MYSQL_ROOT_PASSWORD: root
+    ports:
+      - "3306:3306"
+    volumes:
+      - schemeguard_mysql_data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-uroot", "-proot"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  backend:
+    image: maven:3.9-eclipse-temurin-21
+    working_dir: /app
+    volumes:
+      - ./backend:/app
+      - maven_cache:/root/.m2
+    command: sh -c "mvn spring-boot:run -Dspring-boot.run.profiles=mysql"
+    ports:
+      - "8080:8080"
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:mysql://mysql:3306/schemeguard_ai?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC
+      SPRING_DATASOURCE_USERNAME: schemeguard
+      SPRING_DATASOURCE_PASSWORD: schemeguard
+    depends_on:
+      mysql:
+        condition: service_healthy
+
+volumes:
+  schemeguard_mysql_data:
+  maven_cache:

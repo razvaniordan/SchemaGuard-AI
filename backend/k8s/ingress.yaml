@@ -1,0 +1,16 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: schemeguard-ai-backend
+spec:
+  rules:
+    - host: schemeguard-ai-backend.local
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: schemeguard-ai-backend
+                port:
+                  number: 80
