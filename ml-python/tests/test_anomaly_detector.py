@@ -5,7 +5,7 @@ from models.analysis_models import RuleEngineResult
 def test_detects_fee_outlier():
     # Create ML core instance
     ml_core = MLCore()
-
+    ml_core.config["models"]["anomaly_detection"]["enabled"] = False
     # Only two transactions means fallback threshold is used
     results = [
         RuleEngineResult(
@@ -46,7 +46,7 @@ def test_detects_fee_outlier():
 def test_detects_category_mismatch():
     # Create ML core instance
     ml_core = MLCore()
-
+    ml_core.config["models"]["anomaly_detection"]["enabled"] = False
     # 3DS is enabled but category says non-secure
     results = [
         RuleEngineResult(
@@ -74,7 +74,7 @@ def test_detects_category_mismatch():
 def test_detects_timing_anomaly():
     # Create ML core instance
     ml_core = MLCore()
-
+    ml_core.config["models"]["anomaly_detection"]["enabled"] = False
     # Clearing happens 5 days after authorization
     results = [
         RuleEngineResult(
@@ -103,7 +103,7 @@ def test_detects_timing_anomaly():
 def test_missing_fields_return_warnings():
     # Create ML core instance
     ml_core = MLCore()
-
+    ml_core.config["models"]["anomaly_detection"]["enabled"] = False
     # Missing threeDS, authDate, and clearingDate
     results = [
         RuleEngineResult(

@@ -1,10 +1,10 @@
-from pathlib import Path
-from typing import Any, Dict, List
-from core.recommendation_ranking_model import RecommendationRankingModel
-
 import numpy as np
 import pandas as pd
 import yaml
+
+from pathlib import Path
+from typing import Any, Dict, List
+from core.recommendation_ranking_model import RecommendationRankingModel
 from sklearn.tree import DecisionTreeClassifier
 from core.anomaly_detector import AnomalyDetector
 from core.missed_condition_detector import MissedConditionDetector
@@ -14,6 +14,7 @@ from core.root_cause_analyzer import RootCauseAnalyzer
 from core.historical_data_store import HistoricalDataStore
 from core.training_data_builder import TrainingDataBuilder
 from core.model_registry import ModelRegistry, ModelMetadata
+from core.ml_anomaly_detection_model import MLAnomalyDetectionModel
 from core.impact_prediction_model import ImpactPredictionModel
 from models.analysis_models import (
     MLCoreResponse,
@@ -340,23 +341,57 @@ class MLCore:
             results: List[RuleEngineResult],
     ) -> AnomalyDetectionResponse:
         """
-        Detect abnormal transactions across a transaction portfolio.
+        Detect abnormal transactions.
 
-        This version does NOT rely on __init__.
-        It creates the AnomalyDetector on demand.
-
-        Pros:
-        - No need to modify constructor
-        - Cleaner for optional/feature-based components
-
-        Cons:
-        - Slight overhead (negligible for this use case)
+        Phase 2 behavior:
+        - Try ML anomaly detection when enabled and model exists.
+        - Fall back to the existing rule-based detector if ML is unavailable.
         """
 
-        # Instantiate detector locally (instead of using self.anomaly_detector)
-        detector = AnomalyDetector()
+        model_config = self.config.get("models", {}).get("anomaly_detection", {})
 
-        # Delegate detection logic
+        if model_config.get("enabled", False):
+            model = self._get_ml_anomaly_model()
+
+            if model.pipeline is not None:
+                rows = []
+
+                for result in results:
+                    transaction = result.transaction
+
+                    rows.append(
+                        {
+                            "transactionId": transaction.get(
+                                "transactionId",
+                                transaction.get("id", "UNKNOWN"),
+                            ),
+                            "amount": transaction.get("amount"),
+                            "feeRate": result.feeRate,
+                            "feeAmount": result.feeAmount,
+                            "clearingDelayDays": transaction.get("clearingDelayDays"),
+                            "category": result.category,
+                            "paymentChannel": transaction.get(
+                                "paymentChannel",
+                                transaction.get("channel"),
+                            ),
+                            "threeDS": transaction.get("threeDS"),
+                            "mcc": transaction.get("mcc"),
+                        }
+                    )
+
+                ml_results = model.detect_batch(rows)
+
+                if ml_results:
+                    # Backward compatibility:
+                    # Convert ML results into the existing response shape only if
+                    # your AnomalyDetectionResponse supports anomalies as dicts.
+                    return AnomalyDetectionResponse(
+                        anomalies=[item.model_dump() for item in ml_results],
+                        warnings=[],
+                    )
+
+        # Fallback to existing rule-based anomaly detector.
+        detector = AnomalyDetector()
         return detector.detect(results)
 
     def simulate_bulk_scenarios(
@@ -828,3 +863,35 @@ class MLCore:
             return "ml_ranking"
 
         return "heuristic_ranking"
+
+    def _get_ml_anomaly_model(self) -> MLAnomalyDetectionModel:
+        """
+        Lazy-load ML anomaly detection model.
+
+        This avoids modifying __init__.
+        If the artifact is missing or incompatible, the pipeline remains None.
+        """
+
+        if not hasattr(self, "_ml_anomaly_model"):
+            model_config = self.config.get("models", {}).get("anomaly_detection", {})
+
+            self._ml_anomaly_model = MLAnomalyDetectionModel(
+                model_version="anomaly-model-v1",
+                contamination=model_config.get("contamination", 0.05),
+                min_training_records=model_config.get("min_training_records", 100),
+                random_state=model_config.get("random_state", 42),
+            )
+
+            artifact_path = model_config.get(
+                "artifact_path",
+                "models/artifacts/anomaly-model-v1.joblib",
+            )
+
+            try:
+                self._ml_anomaly_model.load(artifact_path)
+            except Exception:
+                # Missing or incompatible artifact is allowed.
+                # Existing rule-based anomaly detector remains fallback.
+                self._ml_anomaly_model.pipeline = None
+
+        return self._ml_anomaly_model
