@@ -1,5 +1,6 @@
 from pathlib import Path
 from typing import Any, Dict, List
+from core.recommendation_ranking_model import RecommendationRankingModel
 
 import numpy as np
 import pandas as pd
@@ -67,7 +68,16 @@ class MLCore:
         )
 
         # Step 3: rank suggestions using NumPy weighted scoring
-        ranked_suggestions = self._rank_suggestions(suggestions)
+        ranking_algorithm = self._select_ranking_algorithm(current_result)
+
+        if ranking_algorithm == "ml_ranking":
+            ranked_suggestions = self._rank_suggestions_with_ml(
+                suggestions=suggestions,
+                current_result=current_result,
+                missed_conditions=analysis.missedConditions,
+            )
+        else:
+            ranked_suggestions = self._rank_suggestions(suggestions)
 
         # Step 4: simulate transaction using ranked suggestions
         simulation = self.simulator.simulate(
@@ -84,7 +94,7 @@ class MLCore:
             rankedSuggestions=ranked_suggestions,
             simulation=simulation,
             detectedPatterns=detected_patterns,
-            algorithmUsed=algorithm,
+            algorithmUsed=f"{algorithm}+{ranking_algorithm}",
         )
 
         # Lazy initialization (NO __init__ changes)
@@ -672,3 +682,149 @@ class MLCore:
         )
 
         return result.model_dump()
+
+    def _get_recommendation_ranking_model(self) -> RecommendationRankingModel:
+        """
+        Lazy-load recommendation ranking model.
+
+        This avoids modifying __init__.
+        The model is only loaded when ML ranking is requested.
+        """
+
+        if not hasattr(self, "_recommendation_ranking_model"):
+            model_config = self.config.get("models", {}).get(
+                "recommendation_ranking", {}
+            )
+
+            self._recommendation_ranking_model = RecommendationRankingModel(
+                model_version="ranking-model-v1",
+                confidence_threshold=model_config.get("confidence_threshold", 0.65),
+                min_training_records=model_config.get("min_training_records", 20),
+                random_state=model_config.get("random_state", 42),
+            )
+
+            artifact_path = model_config.get(
+                "artifact_path",
+                "models/artifacts/ranking-model-v1.joblib",
+            )
+
+            try:
+                self._recommendation_ranking_model.load(artifact_path)
+            except Exception:
+                # Missing or incompatible artifact is OK.
+                # The model will fallback to heuristic ranking.
+                self._recommendation_ranking_model.pipeline = None
+
+        return self._recommendation_ranking_model
+
+    def _rank_suggestions_with_ml(
+        self,
+        suggestions: List[Any],
+        current_result: RuleEngineResult,
+        missed_conditions: List[Any],
+    ) -> List[RankedSuggestion]:
+        """
+        Rank suggestions using ML when enabled.
+
+        If ML is unavailable, this method falls back to the existing
+        heuristic _rank_suggestions() behavior.
+        """
+
+        model_config = self.config.get("models", {}).get(
+            "recommendation_ranking", {}
+        )
+
+        if not model_config.get("enabled", False):
+            return self._rank_suggestions(suggestions)
+
+        heuristic_ranked = self._rank_suggestions(suggestions)
+        model = self._get_recommendation_ranking_model()
+
+        condition_lookup = {
+            condition.condition: condition
+            for condition in missed_conditions
+        }
+
+        ml_ranked = []
+
+        for index, ranked_suggestion in enumerate(heuristic_ranked):
+            related_condition = next(
+                (
+                    condition
+                    for condition in condition_lookup.values()
+                    if condition.condition.lower()
+                    in ranked_suggestion.description.lower()
+                ),
+                None,
+            )
+
+            features = {
+                "suggestionType": ranked_suggestion.suggestionType,
+                "expectedImpact": ranked_suggestion.expectedImpact,
+                "difficulty": ranked_suggestion.difficulty,
+                "condition": (
+                    related_condition.condition
+                    if related_condition is not None
+                    else "UNKNOWN"
+                ),
+                "amount": current_result.transaction.get("amount"),
+                "category": current_result.category,
+                "historicalSuccessRate": 0.5,
+            }
+
+            prediction = model.predict_score(
+                features=features,
+                heuristic_score=ranked_suggestion.score,
+            )
+
+            ml_ranked.append(
+                RankedSuggestion(
+                    suggestionType=ranked_suggestion.suggestionType,
+                    action=ranked_suggestion.action,
+                    field=ranked_suggestion.field,
+                    currentValue=ranked_suggestion.currentValue,
+                    suggestedValue=ranked_suggestion.suggestedValue,
+                    expectedImpact=ranked_suggestion.expectedImpact,
+                    difficulty=ranked_suggestion.difficulty,
+                    description=ranked_suggestion.description,
+                    score=prediction.score,
+                )
+            )
+
+        # Stable deterministic sort:
+        # score descending, then original order for equal scores.
+        indexed_ranked = list(enumerate(ml_ranked))
+        indexed_ranked.sort(
+            key=lambda item: (-item[1].score, item[0])
+        )
+
+        return [item[1] for item in indexed_ranked]
+
+    def _select_ranking_algorithm(
+        self,
+        current_result: RuleEngineResult,
+    ) -> str:
+        """
+        Select ranking algorithm.
+
+        Phase 2 supports:
+        - heuristic_ranking
+        - ml_ranking
+
+        Deterministic rule for now:
+        large transactions use ML ranking when enabled.
+        """
+
+        model_config = self.config.get("models", {}).get(
+            "recommendation_ranking", {}
+        )
+
+        if not model_config.get("enabled", False):
+            return "heuristic_ranking"
+
+        amount = current_result.transaction.get("amount", 0)
+
+        if amount >= 1000:
+            return "ml_ranking"
+
+        return "heuristic_ranking"

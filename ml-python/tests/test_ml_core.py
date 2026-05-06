@@ -65,7 +65,12 @@ def test_ml_core_runs_full_pipeline():
     assert result.detectedPatterns["mostCommonCondition"] is not None
 
     # It should select an algorithm
-    assert result.algorithmUsed in {"heuristic", "decision_tree"}
+    assert result.algorithmUsed in {
+        "heuristic+heuristic_ranking",
+        "decision_tree+heuristic_ranking",
+        "heuristic+ml_ranking",
+        "decision_tree+ml_ranking",
+    }
 
 def test_analyze_transaction_can_persist_history():
     ml_core = MLCore()
@@ -165,3 +170,32 @@ def test_ml_core_load_active_model_falls_back_when_artifact_missing():
 
     assert result.loaded is False
     assert "Model artifact not found" in result.warnings[0]
+
+def test_select_ranking_algorithm_uses_heuristic_for_small_transaction():
+    ml_core = MLCore()
+
+    current = RuleEngineResult(
+        category="standard",
+        feeRate=0.03,
+        feeAmount=3.0,
+        transaction={"transactionId": "txn-small", "amount": 100},
+    )
+
+    result = ml_core._select_ranking_algorithm(current)
+
+    assert result == "heuristic_ranking"
+
+
+def test_select_ranking_algorithm_uses_ml_for_large_transaction():
+    ml_core = MLCore()
+
+    current = RuleEngineResult(
+        category="standard",
+        feeRate=0.03,
+        feeAmount=30.0,
+        transaction={"transactionId": "txn-large", "amount": 1500},
+    )
+
+    result = ml_core._select_ranking_algorithm(current)
+
+    assert result == "ml_ranking"
