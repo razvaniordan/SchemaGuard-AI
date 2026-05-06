@@ -3,6 +3,7 @@ import pandas as pd
 import yaml
 
 from pathlib import Path
+from models.analysis_models import TransactionAnomaly
 from typing import Any, Dict, List
 from core.recommendation_ranking_model import RecommendationRankingModel
 from sklearn.tree import DecisionTreeClassifier
@@ -387,10 +388,20 @@ class MLCore:
                     # Convert ML results into the existing response shape only if
                     # your AnomalyDetectionResponse supports anomalies as dicts.
                     return AnomalyDetectionResponse(
-                        anomalies=[item.model_dump() for item in ml_results],
+                        anomalies=[
+                            TransactionAnomaly(
+                                transactionId=item.transactionId,
+                                anomalyType=item.anomalyType,
+                                expectedFee=None,
+                                actualFee=None,
+                                deviation=item.anomalyScore,
+                                severity=item.severity,
+                                explanation=item.explanation,
+                            )
+                            for item in ml_results
+                        ],
                         warnings=[],
                     )
-
         # Fallback to existing rule-based anomaly detector.
         detector = AnomalyDetector()
         return detector.detect(results)
