@@ -7,7 +7,7 @@ df = pd.read_csv("data/training_data.csv")
 
 model = MLAnomalyDetectionModel(
     model_version="anomaly-model-v1",
-    contamination=0.05,
+    contamination=0.15,
     min_training_records=100,
     random_state=42,
 )

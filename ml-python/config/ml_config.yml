@@ -36,7 +36,7 @@ models:
   anomaly_detection:
     enabled: true
     algorithm: isolation_forest
-    contamination: 0.05
+    contamination: 0.15
     min_training_records: 100
     random_state: 42
     artifact_path: models/artifacts/anomaly-model-v1.joblib
