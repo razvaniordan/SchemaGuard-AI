@@ -18,6 +18,28 @@ services:
       timeout: 5s
       retries: 20
 
+  rule-engine-python:
+    build:
+      context: ./rule-engine-python
+      dockerfile: Dockerfile
+    container_name: schemeguard-rule-engine-python
+    ports:
+      - "8091:8090"
+    environment:
+      APP_ENV: local
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "python",
+          "-c",
+          "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8090/health', timeout=3).read()"
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
+
   backend:
     build:
       context: ./backend
@@ -29,18 +51,26 @@ services:
       SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/schemeguard_ai
       SPRING_DATASOURCE_USERNAME: schemeguard
       SPRING_DATASOURCE_PASSWORD: schemeguard
+
+      # Use this in Java when calling the Python rule engine.
+      RULE_ENGINE_BASE_URL: http://rule-engine-python:8090
     depends_on:
       postgres:
         condition: service_healthy
-  
+      rule-engine-python:
+        condition: service_healthy
+
   frontend:
     image: node:20
+    container_name: schemeguard-frontend
     working_dir: /app
     volumes:
       - ./frontend:/app
-    command: sh -c "npm install && npm run dev"
+    command: sh -c "npm install && npm run dev -- --host 0.0.0.0"
     ports:
       - "3000:3000"
+    depends_on:
+      - backend
 
 volumes:
   postgres_data:
