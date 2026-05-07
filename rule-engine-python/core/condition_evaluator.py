@@ -484,7 +484,7 @@ class ConditionEvaluator:
         if transaction.region is not None:
             return transaction.region
 
-        merchant_country = transaction.merchant_country or transaction.country
+        merchant_country = transaction.merchant_country
         issuer_country = transaction.issuer_country
 
         if merchant_country is None and issuer_country is None:

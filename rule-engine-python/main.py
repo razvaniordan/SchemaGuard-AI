@@ -106,12 +106,6 @@ def categories() -> list[dict[str, object]]:
 
     return EU_PHASE_1_RULE_CATALOGUE.as_api_response()
 
-@app.post(
-    "/classify-transaction",
-    response_model=ClassificationResponse,
-    tags=["classification"],
-)
-
 
 @app.post(
     "/classify-transaction",
