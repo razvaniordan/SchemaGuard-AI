@@ -303,3 +303,64 @@ class RecommendationPrioritizationResponse(BaseModel):
     modelVersion: Optional[str] = None
     fallbackUsed: bool
     warnings: List[str]
+
+class AIReportTransactionInput(BaseModel):
+    currentResult: RuleEngineResult
+    optimalResult: RuleEngineResult
+
+
+class AIReportRequest(BaseModel):
+    transactions: List[AIReportTransactionInput]
+    reportName: Optional[str] = "AI Optimization Report"
+
+
+class AIReportSummary(BaseModel):
+    reportName: str
+    totalTransactions: int
+    processedTransactions: int
+    totalCurrentFees: float
+    totalOptimizedFees: float
+    estimatedSavings: float
+    anomalyCount: int
+    topRecommendation: Optional[str]
+    topRootCause: Optional[str]
+
+
+class AIReportRecommendationSummary(BaseModel):
+    suggestionType: str
+    count: int
+    totalExpectedImpact: float
+    averageScore: float
+    priority: str
+    explanation: str
+
+
+class AIReportAnomalySummary(BaseModel):
+    transactionId: Optional[str]
+    anomalyType: str
+    severity: str
+    explanation: str
+
+
+class AIReportRootCauseSummary(BaseModel):
+    condition: str
+    frequency: int
+    totalImpact: float
+    averageImpact: float
+    score: float
+    confidence: str
+    rootCause: str
+    mlDriverScore: Optional[float] = None
+    combinedScore: Optional[float] = None
+    modelVersion: Optional[str] = None
+    explanation: Optional[str] = None
+
+
+class AIReportResponse(BaseModel):
+    reportId: str
+    summary: AIReportSummary
+    recommendationSummary: List[AIReportRecommendationSummary]
+    anomalySummary: List[AIReportAnomalySummary]
+    rootCauseSummary: List[AIReportRootCauseSummary]
+    portfolioDrivers: Dict[str, Any]
+    warnings: List[str]

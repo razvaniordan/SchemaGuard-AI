@@ -5,6 +5,8 @@ from core.missed_condition_detector import MissedConditionDetector
 from core.change_suggestion_engine import ChangeSuggestionEngine
 from core.ml_core import MLCore
 from models.analysis_models import MLCoreRequest, MLCoreResponse
+from core.engines.ai_report_generation_engine import AIReportGenerationEngine
+from models.analysis_models import AIReportRequest, AIReportResponse
 from core.engines.recommendation_prioritization_engine import RecommendationPrioritizationEngine
 from models.analysis_models import (
     RecommendationPrioritizationRequest,
@@ -29,11 +31,11 @@ app = FastAPI(title="SchemeGuard AI ML Service")
 # Create service instances
 detector = MissedConditionDetector()
 suggestion_engine = ChangeSuggestionEngine()
-
 simulator = TransactionSimulator()
-
 ml_core = MLCore()
 recommendation_prioritization_engine = RecommendationPrioritizationEngine()
+ai_report_generation_engine = AIReportGenerationEngine()
+
 @app.post("/missed-conditions", response_model=MissedConditionAnalysis)
 def analyze_missed_conditions(
     currentResult: RuleEngineResult,
@@ -135,3 +137,8 @@ def analyze_root_causes(
 def prioritize_recommendations(request: RecommendationPrioritizationRequest):
     # Rank optimization recommendations using heuristic or ML ranking.
     return recommendation_prioritization_engine.prioritize(request)
+
+@app.post("/ml-core/generate-report", response_model=AIReportResponse)
+def generate_ai_report(request: AIReportRequest):
+    # Generate a portfolio-level AI report using ML recommendations, anomalies, and root causes.
+    return ai_report_generation_engine.generate_report(request)
