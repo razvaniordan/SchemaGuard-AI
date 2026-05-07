@@ -15,7 +15,6 @@ def test_transaction_input_normalizes_java_style_payload():
         transactionId="txn-1",
         amount="100.00",
         currency="eur",
-        country="nl",
         channel="ecommerce",
         cardType="credit",
         mcc=5411,
@@ -28,7 +27,6 @@ def test_transaction_input_normalizes_java_style_payload():
     assert transaction.transaction_id == "txn-1"
     assert transaction.amount == Decimal("100.00")
     assert transaction.currency == "EUR"
-    assert transaction.country == "NL"
     assert transaction.channel == Channel.ECOMMERCE
     assert transaction.card_type == CardType.CREDIT
     assert transaction.mcc == "5411"

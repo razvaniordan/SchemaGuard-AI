@@ -51,6 +51,8 @@ services:
       SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/schemeguard_ai
       SPRING_DATASOURCE_USERNAME: schemeguard
       SPRING_DATASOURCE_PASSWORD: schemeguard
+
+      # Use this in Java when calling the Python rule engine.
       RULE_ENGINE_BASE_URL: http://rule-engine-python:8090
     depends_on:
       postgres:

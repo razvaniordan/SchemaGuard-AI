@@ -96,8 +96,6 @@ class TransactionInput(BaseModel):
     amount: Optional[Decimal] = None
     currency: Optional[str] = None
 
-    # Backward-compatible with current Java Transaction.country
-    country: Optional[str] = None
 
     merchant_country: Optional[str] = Field(default=None, alias="merchantCountry")
     issuer_country: Optional[str] = Field(default=None, alias="issuerCountry")
@@ -109,7 +107,6 @@ class TransactionInput(BaseModel):
 
     channel: Optional[Channel] = None
     mcc: Optional[str] = None
-    transaction_type: Optional[str] = Field(default=None, alias="transactionType")
 
     three_ds: Optional[bool] = Field(default=None, alias="threeDS")
     eci: Optional[str] = None
@@ -117,7 +114,7 @@ class TransactionInput(BaseModel):
     auth_date: Optional[datetime | date] = Field(default=None, alias="authDate")
     clearing_date: Optional[datetime | date] = Field(default=None, alias="clearingDate")
 
-    @field_validator("currency", "country", "merchant_country", "issuer_country", mode="before")
+    @field_validator("currency", "merchant_country", "issuer_country", mode="before")
     @classmethod
     def normalize_uppercase_strings(cls, value: Any) -> Any:
         if value is None or value == "":
