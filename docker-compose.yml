@@ -1,21 +1,19 @@
 version: "3.9"
 
 services:
-
-  mysql:
-    image: mysql:8.4
-    container_name: schemeguard-mysql
+  postgres:
+    image: postgres:16
+    container_name: schemeguard-postgres
     environment:
-      MYSQL_DATABASE: schemeguard_ai
-      MYSQL_USER: schemeguard
-      MYSQL_PASSWORD: schemeguard
-      MYSQL_ROOT_PASSWORD: root
+      POSTGRES_DB: schemeguard_ai
+      POSTGRES_USER: schemeguard
+      POSTGRES_PASSWORD: schemeguard
     ports:
-      - "3306:3306"
+      - "5432:5432"
     volumes:
-      - mysql_data:/var/lib/mysql
+      - postgres_data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-uroot", "-proot"]
+      test: ["CMD-SHELL", "pg_isready -U schemeguard -d schemeguard_ai"]
       interval: 5s
       timeout: 5s
       retries: 20
@@ -27,12 +25,12 @@ services:
     ports:
       - "8080:8080"
     environment:
-      SPRING_PROFILES_ACTIVE: mysql
-      SPRING_DATASOURCE_URL: jdbc:mysql://mysql:3306/schemeguard_ai?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC
+      SPRING_PROFILES_ACTIVE: postgres
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/schemeguard_ai
       SPRING_DATASOURCE_USERNAME: schemeguard
       SPRING_DATASOURCE_PASSWORD: schemeguard
     depends_on:
-      mysql:
+      postgres:
         condition: service_healthy
   
   frontend:
@@ -45,4 +43,4 @@ services:
       - "3000:3000"
 
 volumes:
-  mysql_data:
+  postgres_data:

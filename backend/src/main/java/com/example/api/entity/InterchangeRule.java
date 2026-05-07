@@ -76,5 +76,5 @@ public class InterchangeRule {
     @Builder.Default
     private String currencyCode = "EUR";
 
-    public enum ClearingTimeCondition { LTE_24H, GT_24H, ANY }
+    public enum ClearingTimeCondition { LTE_24H, GT_24H }
 }
