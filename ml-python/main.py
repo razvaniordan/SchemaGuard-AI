@@ -5,6 +5,11 @@ from core.missed_condition_detector import MissedConditionDetector
 from core.change_suggestion_engine import ChangeSuggestionEngine
 from core.ml_core import MLCore
 from models.analysis_models import MLCoreRequest, MLCoreResponse
+from core.engines.recommendation_prioritization_engine import RecommendationPrioritizationEngine
+from models.analysis_models import (
+    RecommendationPrioritizationRequest,
+    RecommendationPrioritizationResponse,
+)
 from models.analysis_models import (
     RuleEngineResult,
     MissedConditionAnalysis,
@@ -28,7 +33,7 @@ suggestion_engine = ChangeSuggestionEngine()
 simulator = TransactionSimulator()
 
 ml_core = MLCore()
-
+recommendation_prioritization_engine = RecommendationPrioritizationEngine()
 @app.post("/missed-conditions", response_model=MissedConditionAnalysis)
 def analyze_missed_conditions(
     currentResult: RuleEngineResult,
@@ -122,3 +127,11 @@ def analyze_root_causes(
     """
 
     return ml_core.analyze_root_causes(analyses)
+
+@app.post(
+    "/ml-core/prioritize-recommendations",
+    response_model=RecommendationPrioritizationResponse,
+)
+def prioritize_recommendations(request: RecommendationPrioritizationRequest):
+    # Rank optimization recommendations using heuristic or ML ranking.
+    return recommendation_prioritization_engine.prioritize(request)

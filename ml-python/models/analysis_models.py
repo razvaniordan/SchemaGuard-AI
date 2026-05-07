@@ -277,3 +277,29 @@ class HistoricalDataStoreResult(BaseModel):
     stored: bool
     transactionId: Optional[str]
     warnings: List[str]
+
+class RecommendationPrioritizationRequest(BaseModel):
+    currentResult: RuleEngineResult
+    optimalResult: RuleEngineResult
+
+
+class PrioritizedRecommendation(BaseModel):
+    suggestionType: str
+    action: str
+    field: str
+    currentValue: Optional[Any]
+    suggestedValue: Optional[Any]
+    expectedImpact: float
+    difficulty: str
+    description: str
+    score: float
+    priority: str
+    rankingReason: str
+
+
+class RecommendationPrioritizationResponse(BaseModel):
+    recommendations: List[PrioritizedRecommendation]
+    algorithmUsed: str
+    modelVersion: Optional[str] = None
+    fallbackUsed: bool
+    warnings: List[str]
