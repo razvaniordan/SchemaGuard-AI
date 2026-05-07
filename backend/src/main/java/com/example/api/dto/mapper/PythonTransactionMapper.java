@@ -1,14 +1,14 @@
 package com.example.api.dto.mapper;
 
-import com.example.api.dto.request.PythonClassificationRequest;
+import com.example.api.dto.request.PythonTransactionInput;
 import com.example.api.entity.Transaction;
 import org.springframework.stereotype.Component;
 
 @Component
 public class PythonTransactionMapper {
 
-    public PythonClassificationRequest toPythonInput(Transaction tx) {
-        return new PythonClassificationRequest(
+    public PythonTransactionInput toPythonInput(Transaction tx) {
+        return new PythonTransactionInput(
                 tx.getTransactionId() == null ? null : tx.getTransactionId().toString(),
 
                 tx.getMerchant() == null ? null : tx.getMerchant().getMerchantId().toString(),
@@ -48,8 +48,13 @@ public class PythonTransactionMapper {
 
                 tx.getEciValue(),
 
-                tx.getAuthorizationDatetime(),
-                tx.getClearingDatetime()
+                tx.getAuthorizationDatetime() == null
+                        ? null
+                        : tx.getAuthorizationDatetime().toString(),
+
+                tx.getClearingDatetime() == null
+                        ? null
+                        : tx.getClearingDatetime().toString()
         );
     }
 
