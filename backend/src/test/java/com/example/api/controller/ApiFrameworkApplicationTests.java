@@ -41,5 +41,5 @@ class ApiFrameworkApplicationTests {
         mockMvc.perform(get("/api/transactions"))
                 .andExpect(status().isForbidden());
     }
-    
+
 }
