@@ -15,4 +15,4 @@ Build a system that simulates and optimizes transaction classification under car
 
 ## Getting Started
 
-Instructions will be added soon.
+Build and run containers with the following command in the root folder: docker compose up --build
