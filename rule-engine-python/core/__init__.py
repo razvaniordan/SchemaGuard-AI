@@ -1,5 +1,7 @@
 """Core rule engine components."""
 
+from .fee_service import FeeCalculationService
+
 from .authentication_evaluator import (
     AuthenticationEvaluation,
     AuthenticationEvaluator,
@@ -43,4 +45,5 @@ __all__ = [
     "SECURE_ECI_VALUES",
     "StarSchemaETL",
     "UNKNOWN_DIMENSION_KEY",
+    "FeeCalculationService",
 ]

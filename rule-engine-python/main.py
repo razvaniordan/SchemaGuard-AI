@@ -7,8 +7,8 @@ The actual ClassificationEngine implementation will be added in later subtasks.
 """
 
 from __future__ import annotations
-from core import ClassificationEngine, StarSchemaETL
-from fastapi import FastAPI, HTTPException
+from core import ClassificationEngine, FeeCalculationService, StarSchemaETL
+from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from models import (
@@ -16,8 +16,11 @@ from models import (
     Channel,
     ClassificationRequest,
     ClassificationResponse,
+    FeeCalculationRequest,
+    FeeCalculationResult,
     Region,
 )
+
 from rules import EU_PHASE_1_RULE_CATALOGUE
 
 APP_NAME = "SchemeGuard Rule Engine"
@@ -25,6 +28,7 @@ APP_VERSION = "0.1.0"
 PHASE = "EU Phase 1"
 classification_engine = ClassificationEngine()
 star_schema_etl = StarSchemaETL()
+fee_calculation_service = FeeCalculationService()
 
 app = FastAPI(
     title=APP_NAME,
@@ -125,7 +129,23 @@ def classify_transaction(request: ClassificationRequest) -> ClassificationRespon
         classification=classification_result,
     )
 
+    fee_calculation = fee_calculation_service.calculate_for_classification(
+        transaction=request.transaction,
+        classification=classification_result,
+    )
+
     return ClassificationResponse(
         result=classification_result,
         factTransaction=fact_transaction,
+        feeCalculation=fee_calculation,
     )
+
+@app.post(
+    "/calculate-fee",
+    response_model=FeeCalculationResult,
+    tags=["fees"],
+)
+def calculate_fee(request: FeeCalculationRequest) -> FeeCalculationResult:
+    """Calculate a fee directly from amount, feeRate, currency, and optional caps."""
+
+    return fee_calculation_service.calculate(request)

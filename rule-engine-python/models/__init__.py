@@ -16,6 +16,9 @@ from .classification_models import (
     InterchangeCategory,
     Region,
     TransactionInput,
+    FeeCalculationRequest,
+    FeeCalculationResult,
+    FeeCapInput,
 )
 
 __all__ = [
@@ -34,4 +37,7 @@ __all__ = [
     "InterchangeCategory",
     "Region",
     "TransactionInput",
+    "FeeCalculationRequest",
+    "FeeCalculationResult",
+    "FeeCapInput",
 ]
