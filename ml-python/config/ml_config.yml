@@ -11,3 +11,39 @@ difficulty_scores:
 
 ab_testing:
   default_algorithm: heuristic
+
+active_models:
+  impact_prediction: impact-model-v1
+  recommendation_ranking: ranking-model-v1
+  anomaly_detection: anomaly-model-v1
+  root_cause_driver: root-cause-model-v1
+
+models:
+  impact_prediction:
+    enabled: true
+    fallback_to_heuristic: true
+    confidence_threshold: 0.65
+    min_training_records: 20
+    random_state: 42
+    artifact_path: models/artifacts/impact-model-v1.joblib
+  recommendation_ranking:
+    enabled: true
+    fallback_to_heuristic: true
+    confidence_threshold: 0.65
+    min_training_records: 20
+    random_state: 42
+    artifact_path: models/artifacts/ranking-model-v1.joblib
+  anomaly_detection:
+    enabled: true
+    algorithm: isolation_forest
+    contamination: 0.15
+    min_training_records: 100
+    random_state: 42
+    artifact_path: models/artifacts/anomaly-model-v1.joblib
+  root_cause_driver:
+    enabled: true
+    algorithm: random_forest
+    min_training_records: 100
+    high_loss_threshold: 5.0
+    random_state: 42
+    artifact_path: models/artifacts/root-cause-model-v1.joblib

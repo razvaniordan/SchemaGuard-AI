@@ -5,7 +5,7 @@ from models.analysis_models import MissedCondition, MissedConditionAnalysis
 def test_root_cause_analysis_ranks_by_score():
     # Create ML core instance
     ml_core = MLCore()
-
+    ml_core.config["models"]["root_cause_driver"]["enabled"] = False
     # Build a small portfolio with repeated missed conditions
     analyses = [
         MissedConditionAnalysis(
@@ -84,7 +84,7 @@ def test_root_cause_analysis_ranks_by_score():
 def test_root_cause_analysis_marks_low_confidence_for_low_data():
     # Create ML core instance
     ml_core = MLCore()
-
+    ml_core.config["models"]["root_cause_driver"]["enabled"] = False
     # Single occurrence means low confidence
     analyses = [
         MissedConditionAnalysis(
@@ -115,7 +115,7 @@ def test_root_cause_analysis_marks_low_confidence_for_low_data():
 def test_root_cause_analysis_handles_empty_input():
     # Create ML core instance
     ml_core = MLCore()
-
+    ml_core.config["models"]["root_cause_driver"]["enabled"] = False
     # Run with no portfolio data
     result = ml_core.analyze_root_causes([])
 
@@ -127,7 +127,7 @@ def test_root_cause_analysis_handles_empty_input():
 def test_root_cause_analysis_returns_multiple_causes_for_conflicting_signals():
     # Create ML core instance
     ml_core = MLCore()
-
+    ml_core.config["models"]["root_cause_driver"]["enabled"] = False
     # Two different conditions with equal score should both be returned
     analyses = [
         MissedConditionAnalysis(
