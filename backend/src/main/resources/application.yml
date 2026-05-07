@@ -1,6 +1,9 @@
 spring:
   application:
     name: story-1-3-api-framework
+  jackson:
+    serialization:
+      write-dates-as-timestamps: false
 
   datasource:
     url: jdbc:h2:mem:testdb

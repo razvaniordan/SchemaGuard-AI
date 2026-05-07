@@ -8,12 +8,14 @@ import org.springframework.web.client.RestClient;
 @Configuration
 public class PythonClassificationClientConfig {
 
+
+
     @Bean
     public RestClient pythonClassificationRestClient(
-            @Value("http://rule-engine-python:8090") String baseUrl
+            //@Value("http://rule-engine-python:8090") String baseUrl
     ) {
         return RestClient.builder()
-                .baseUrl(baseUrl)
+                .baseUrl("http://rule-engine-python:8090")
                 .build();
     }
 }
