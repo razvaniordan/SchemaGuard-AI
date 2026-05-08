@@ -84,7 +84,11 @@ def normalize_transaction(transaction: Dict[str, Any]) -> Dict[str, Any]:
     if "paymentChannel" not in normalized and normalized.get("channel") is not None:
         normalized["paymentChannel"] = normalized.get("channel")
 
-    if "clearingDelayDays" not in normalized or normalized.get("clearingDelayDays") is None:
+    calculated_delay = calculate_clearing_delay_days_without_existing_value(normalized)
+
+    if calculated_delay is not None:
+        normalized["clearingDelayDays"] = calculated_delay
+    elif "clearingDelayDays" not in normalized:
         normalized["clearingDelayDays"] = calculate_clearing_delay_days(normalized)
 
     return normalized
@@ -109,3 +113,19 @@ def build_ml_feature_row(
         "threeDS": transaction.get("threeDS"),
         "mcc": transaction.get("mcc"),
     }
+
+def calculate_clearing_delay_days_without_existing_value(
+    transaction: Dict[str, Any],
+) -> Optional[int]:
+    auth_date = transaction.get("authDate")
+    clearing_date = transaction.get("clearingDate")
+
+    if not auth_date or not clearing_date:
+        return None
+
+    try:
+        auth_dt = datetime.fromisoformat(str(auth_date))
+        clearing_dt = datetime.fromisoformat(str(clearing_date))
+        return max((clearing_dt - auth_dt).days, 0)
+    except ValueError:
+        return None

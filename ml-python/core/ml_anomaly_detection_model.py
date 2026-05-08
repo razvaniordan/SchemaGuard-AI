@@ -257,7 +257,16 @@ class MLAnomalyDetectionModel:
         if row.get("clearingDelayDays", 0) and row.get("clearingDelayDays", 0) >= 5:
             reasons.append("clearing delay is unusually long")
 
-        if row.get("threeDS") is False and "Secure" in str(row.get("category", "")):
+        category = str(row.get("category", ""))
+
+        if row.get("threeDS") is False and "Non-Secure" in category:
+            reasons.append("transaction is non-secure because 3DS is not enabled")
+
+        if (
+                row.get("threeDS") is False
+                and "Secure" in category
+                and "Non-Secure" not in category
+        ):
             reasons.append("3DS flag conflicts with secure category")
 
         if not reasons:

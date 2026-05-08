@@ -18,6 +18,8 @@ from core.model_registry import ModelRegistry, ModelMetadata
 from core.ml_anomaly_detection_model import MLAnomalyDetectionModel
 from core.impact_prediction_model import ImpactPredictionModel
 from core.root_cause_driver_model import RootCauseDriverModel
+from core.transaction_schema import build_ml_feature_row
+from core.transaction_schema import build_ml_feature_row, normalize_transaction, get_payment_channel
 from models.analysis_models import (
     MLCoreResponse,
     RankedSuggestion,
@@ -362,23 +364,12 @@ class MLCore:
                     transaction = result.transaction
 
                     rows.append(
-                        {
-                            "transactionId": transaction.get(
-                                "transactionId",
-                                transaction.get("id", "UNKNOWN"),
-                            ),
-                            "amount": transaction.get("amount"),
-                            "feeRate": result.feeRate,
-                            "feeAmount": result.feeAmount,
-                            "clearingDelayDays": transaction.get("clearingDelayDays"),
-                            "category": result.category,
-                            "paymentChannel": transaction.get(
-                                "paymentChannel",
-                                transaction.get("channel"),
-                            ),
-                            "threeDS": transaction.get("threeDS"),
-                            "mcc": transaction.get("mcc"),
-                        }
+                        build_ml_feature_row(
+                            transaction=transaction,
+                            category=result.category,
+                            fee_rate=result.feeRate,
+                            fee_amount=result.feeAmount,
+                        )
                     )
 
                 ml_results = model.detect_batch(rows)
@@ -739,6 +730,7 @@ class MLCore:
         return self._impact_prediction_model
 
     def predict_impact(
+
         self,
         features: Dict[str, Any],
         heuristic_impact: float,
@@ -749,6 +741,13 @@ class MLCore:
         Uses ML model when enabled and available.
         Falls back to heuristic impact otherwise.
         """
+        features = dict(features)
+
+        if "paymentChannel" not in features and "channel" in features:
+            features["paymentChannel"] = features.get("channel")
+
+        if "clearingDelayDays" not in features:
+            features["clearingDelayDays"] = None
 
         model_config = self.config.get("models", {}).get("impact_prediction", {})
 

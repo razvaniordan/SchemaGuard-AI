@@ -7,7 +7,6 @@ from models.analysis_models import (
     MLCoreResponse,
 )
 
-
 class TrainingDataBuilder:
     def build_record(
         self,
@@ -23,6 +22,7 @@ class TrainingDataBuilder:
 
         features = {
             "transactionId": transaction_id,
+
             "amount": transaction.get("amount"),
             "currency": transaction.get("currency"),
             "merchantCountry": transaction.get("merchantCountry"),
@@ -39,12 +39,19 @@ class TrainingDataBuilder:
             "authDate": transaction.get("authDate"),
             "clearingDate": transaction.get("clearingDate"),
             "clearingDelayDays": transaction.get("clearingDelayDays"),
+
             "category": current_result.category,
             "feeRate": current_result.feeRate,
             "feeAmount": current_result.feeAmount,
+
             "optimalCategory": optimal_result.category,
             "optimalFeeRate": optimal_result.feeRate,
             "optimalFeeAmount": optimal_result.feeAmount,
+
+            "label_actualSavings": round(
+                max(current_result.feeAmount - optimal_result.feeAmount, 0.0),
+                4,
+            ),
         }
 
         labels = None
