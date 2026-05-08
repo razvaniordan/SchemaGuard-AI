@@ -4,7 +4,20 @@ from core.transaction_simulator import TransactionSimulator
 from core.missed_condition_detector import MissedConditionDetector
 from core.change_suggestion_engine import ChangeSuggestionEngine
 from core.ml_core import MLCore
+from core.engines.ml_analytics_engine import MLAnalyticsEngine
+from models.analysis_models import MLAnalyticsRequest, MLAnalyticsResponse
 from models.analysis_models import MLCoreRequest, MLCoreResponse
+from fastapi.responses import FileResponse
+from core.engines.fee_comparison_engine import FeeComparisonEngine
+from models.analysis_models import FeeComparisonRequest, FeeComparisonResponse
+from core.exporters.pdf_report_exporter import PDFReportExporter
+from core.engines.ai_report_generation_engine import AIReportGenerationEngine
+from models.analysis_models import AIReportRequest, AIReportResponse
+from core.engines.recommendation_prioritization_engine import RecommendationPrioritizationEngine
+from models.analysis_models import (
+    RecommendationPrioritizationRequest,
+    RecommendationPrioritizationResponse,
+)
 from models.analysis_models import (
     RuleEngineResult,
     MissedConditionAnalysis,
@@ -24,10 +37,13 @@ app = FastAPI(title="SchemeGuard AI ML Service")
 # Create service instances
 detector = MissedConditionDetector()
 suggestion_engine = ChangeSuggestionEngine()
-
 simulator = TransactionSimulator()
-
 ml_core = MLCore()
+recommendation_prioritization_engine = RecommendationPrioritizationEngine()
+ai_report_generation_engine = AIReportGenerationEngine()
+pdf_report_exporter = PDFReportExporter()
+ml_analytics_engine = MLAnalyticsEngine()
+fee_comparison_engine = FeeComparisonEngine()
 
 @app.post("/missed-conditions", response_model=MissedConditionAnalysis)
 def analyze_missed_conditions(
@@ -122,3 +138,41 @@ def analyze_root_causes(
     """
 
     return ml_core.analyze_root_causes(analyses)
+
+@app.post(
+    "/ml-core/prioritize-recommendations",
+    response_model=RecommendationPrioritizationResponse,
+)
+def prioritize_recommendations(request: RecommendationPrioritizationRequest):
+    # Rank optimization recommendations using heuristic or ML ranking.
+    return recommendation_prioritization_engine.prioritize(request)
+
+@app.post("/ml-core/generate-report", response_model=AIReportResponse)
+def generate_ai_report(request: AIReportRequest):
+    # Generate a portfolio-level AI report using ML recommendations, anomalies, and root causes.
+    return ai_report_generation_engine.generate_report(request)
+
+@app.post("/ml-core/generate-report/pdf")
+def generate_ai_report_pdf(request: AIReportRequest):
+    # Generate the report data first.
+    report = ai_report_generation_engine.generate_report(request)
+
+    # Export the structured report to PDF.
+    output_path = f"reports/generated/{report.reportId}.pdf"
+    pdf_path = pdf_report_exporter.export(report, output_path)
+
+    return FileResponse(
+        path=pdf_path,
+        media_type="application/pdf",
+        filename=f"{report.summary.reportName}.pdf",
+    )
+
+@app.post("/ml-core/analytics/portfolio", response_model=MLAnalyticsResponse)
+def analyze_ml_portfolio(request: MLAnalyticsRequest):
+    # Generate portfolio-level ML analytics and transaction drill-down insights.
+    return ml_analytics_engine.analyze_portfolio(request)
+
+@app.post("/ml-core/compare-fees", response_model=FeeComparisonResponse)
+def compare_fees(request: FeeComparisonRequest):
+    # Compare current and optimized fees using deterministic and ML-assisted savings.
+    return fee_comparison_engine.compare_fees(request)
