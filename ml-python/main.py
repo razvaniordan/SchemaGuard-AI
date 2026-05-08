@@ -5,6 +5,8 @@ from core.missed_condition_detector import MissedConditionDetector
 from core.change_suggestion_engine import ChangeSuggestionEngine
 from core.ml_core import MLCore
 from models.analysis_models import MLCoreRequest, MLCoreResponse
+from fastapi.responses import FileResponse
+from core.exporters.pdf_report_exporter import PDFReportExporter
 from core.engines.ai_report_generation_engine import AIReportGenerationEngine
 from models.analysis_models import AIReportRequest, AIReportResponse
 from core.engines.recommendation_prioritization_engine import RecommendationPrioritizationEngine
@@ -35,6 +37,7 @@ simulator = TransactionSimulator()
 ml_core = MLCore()
 recommendation_prioritization_engine = RecommendationPrioritizationEngine()
 ai_report_generation_engine = AIReportGenerationEngine()
+pdf_report_exporter = PDFReportExporter()
 
 @app.post("/missed-conditions", response_model=MissedConditionAnalysis)
 def analyze_missed_conditions(
@@ -142,3 +145,18 @@ def prioritize_recommendations(request: RecommendationPrioritizationRequest):
 def generate_ai_report(request: AIReportRequest):
     # Generate a portfolio-level AI report using ML recommendations, anomalies, and root causes.
     return ai_report_generation_engine.generate_report(request)
+
+@app.post("/ml-core/generate-report/pdf")
+def generate_ai_report_pdf(request: AIReportRequest):
+    # Generate the report data first.
+    report = ai_report_generation_engine.generate_report(request)
+
+    # Export the structured report to PDF.
+    output_path = f"reports/generated/{report.reportId}.pdf"
+    pdf_path = pdf_report_exporter.export(report, output_path)
+
+    return FileResponse(
+        path=pdf_path,
+        media_type="application/pdf",
+        filename=f"{report.summary.reportName}.pdf",
+    )
