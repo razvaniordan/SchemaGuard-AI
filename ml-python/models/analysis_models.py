@@ -277,3 +277,176 @@ class HistoricalDataStoreResult(BaseModel):
     stored: bool
     transactionId: Optional[str]
     warnings: List[str]
+
+class RecommendationPrioritizationRequest(BaseModel):
+    currentResult: RuleEngineResult
+    optimalResult: RuleEngineResult
+
+
+class PrioritizedRecommendation(BaseModel):
+    suggestionType: str
+    action: str
+    field: str
+    currentValue: Optional[Any]
+    suggestedValue: Optional[Any]
+    expectedImpact: float
+    difficulty: str
+    description: str
+    score: float
+    priority: str
+    rankingReason: str
+
+
+class RecommendationPrioritizationResponse(BaseModel):
+    recommendations: List[PrioritizedRecommendation]
+    algorithmUsed: str
+    modelVersion: Optional[str] = None
+    fallbackUsed: bool
+    warnings: List[str]
+
+class AIReportTransactionInput(BaseModel):
+    currentResult: RuleEngineResult
+    optimalResult: RuleEngineResult
+
+
+class AIReportRequest(BaseModel):
+    transactions: List[AIReportTransactionInput]
+    reportName: Optional[str] = "AI Optimization Report"
+
+
+class AIReportSummary(BaseModel):
+    reportName: str
+    totalTransactions: int
+    processedTransactions: int
+    totalCurrentFees: float
+    totalOptimizedFees: float
+    estimatedSavings: float
+    anomalyCount: int
+    topRecommendation: Optional[str]
+    topRootCause: Optional[str]
+
+
+class AIReportRecommendationSummary(BaseModel):
+    suggestionType: str
+    count: int
+    totalExpectedImpact: float
+    averageScore: float
+    priority: str
+    explanation: str
+
+
+class AIReportAnomalySummary(BaseModel):
+    transactionId: Optional[str]
+    anomalyType: str
+    severity: str
+    explanation: str
+
+
+class AIReportRootCauseSummary(BaseModel):
+    condition: str
+    frequency: int
+    totalImpact: float
+    averageImpact: float
+    score: float
+    confidence: str
+    rootCause: str
+    mlDriverScore: Optional[float] = None
+    combinedScore: Optional[float] = None
+    modelVersion: Optional[str] = None
+    explanation: Optional[str] = None
+
+
+class AIReportResponse(BaseModel):
+    reportId: str
+    summary: AIReportSummary
+    recommendationSummary: List[AIReportRecommendationSummary]
+    anomalySummary: List[AIReportAnomalySummary]
+    rootCauseSummary: List[AIReportRootCauseSummary]
+    portfolioDrivers: Dict[str, Any]
+    warnings: List[str]
+
+class MLAnalyticsTransactionInput(BaseModel):
+    currentResult: RuleEngineResult
+    optimalResult: RuleEngineResult
+
+
+class MLAnalyticsRequest(BaseModel):
+    transactions: List[MLAnalyticsTransactionInput]
+
+
+class AnomalyTrendItem(BaseModel):
+    anomalyType: str
+    count: int
+    highSeverityCount: int
+
+
+class RecommendationSuccessMetric(BaseModel):
+    suggestionType: str
+    count: int
+    averageScore: float
+    totalExpectedImpact: float
+    estimatedSuccessRate: float
+
+
+class RootCauseDriverMetric(BaseModel):
+    condition: str
+    frequency: int
+    totalImpact: float
+    averageImpact: float
+    combinedScore: Optional[float] = None
+    mlDriverScore: Optional[float] = None
+    modelVersion: Optional[str] = None
+
+
+class MLConfidenceMetric(BaseModel):
+    algorithmUsed: str
+    count: int
+
+
+class TransactionDrilldownItem(BaseModel):
+    transactionId: Optional[str]
+    category: str
+    feeAmount: float
+    recommendations: List[str]
+    anomalies: List[str]
+    topRootCause: Optional[str]
+
+
+class MLAnalyticsResponse(BaseModel):
+    totalTransactions: int
+    anomalyTrends: List[AnomalyTrendItem]
+    recommendationSuccessMetrics: List[RecommendationSuccessMetric]
+    rootCauseDrivers: List[RootCauseDriverMetric]
+    portfolioOptimizationOpportunities: Dict[str, float]
+    mlConfidenceAnalytics: List[MLConfidenceMetric]
+    transactionDrilldown: List[TransactionDrilldownItem]
+    warnings: List[str]
+
+class FeeComparisonRequest(BaseModel):
+    currentResult: RuleEngineResult
+    optimalResult: RuleEngineResult
+    monthlyTransactionVolume: Optional[int] = None
+    yearlyTransactionVolume: Optional[int] = None
+    currency: Optional[str] = "RON"
+
+
+class FeeComparisonResponse(BaseModel):
+    currentFeeAmount: float
+    optimizedFeeAmount: float
+    absoluteSavings: float
+    percentageSavings: float
+
+    mlPredictedSavings: float
+    mlConfidence: float
+    predictionSource: str
+    modelVersion: Optional[str] = None
+    fallbackUsed: bool
+    warnings: List[str]
+
+    monthlyProjectedSavings: Optional[float] = None
+    yearlyProjectedSavings: Optional[float] = None
+
+    currency: str
+    currentFeeAmountEur: Optional[float] = None
+    optimizedFeeAmountEur: Optional[float] = None
+    absoluteSavingsEur: Optional[float] = None
