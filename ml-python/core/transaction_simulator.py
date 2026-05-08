@@ -8,6 +8,12 @@ from models.analysis_models import (
     TransactionSimulationResponse,
 )
 
+from core.transaction_schema import (
+    REQUIRED_TRANSACTION_FIELDS,
+    VALID_CARD_TYPES,
+    VALID_CHANNELS,
+)
+
 
 class TransactionSimulator:
     def simulate(
@@ -89,20 +95,7 @@ class TransactionSimulator:
         messages = []
 
         # Required transaction fields from the project scope
-        required_fields = [
-            "amount",
-            "currency",
-            "country",
-            "cardType",
-            "channel",
-            "mcc",
-            "threeDS",
-            "authDate",
-            "clearingDate",
-            "cardBrand",
-            "cardPresence",
-            "transactionType",
-        ]
+        required_fields = REQUIRED_TRANSACTION_FIELDS
 
         # Check if required fields are present
         for field in required_fields:
@@ -138,14 +131,14 @@ class TransactionSimulator:
                 messages.append("authDate and clearingDate must use ISO format YYYY-MM-DD")
 
         # Validate card type
-        valid_card_types = {"Credit", "Debit", "Prepaid", "Commercial"}
+        valid_card_types = VALID_CARD_TYPES
         card_type = transaction.get("cardType")
 
         if card_type and card_type not in valid_card_types:
             messages.append("cardType must be Credit, Debit, Prepaid, or Commercial")
 
         # Validate channel
-        valid_channels = {"eCommerce", "POS", "MOTO"}
+        valid_channels = VALID_CHANNELS
         channel = transaction.get("channel")
 
         if channel and channel not in valid_channels:
