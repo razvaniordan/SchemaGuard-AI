@@ -8,6 +8,8 @@ from core.engines.ml_analytics_engine import MLAnalyticsEngine
 from models.analysis_models import MLAnalyticsRequest, MLAnalyticsResponse
 from models.analysis_models import MLCoreRequest, MLCoreResponse
 from fastapi.responses import FileResponse
+from core.engines.fee_comparison_engine import FeeComparisonEngine
+from models.analysis_models import FeeComparisonRequest, FeeComparisonResponse
 from core.exporters.pdf_report_exporter import PDFReportExporter
 from core.engines.ai_report_generation_engine import AIReportGenerationEngine
 from models.analysis_models import AIReportRequest, AIReportResponse
@@ -41,6 +43,7 @@ recommendation_prioritization_engine = RecommendationPrioritizationEngine()
 ai_report_generation_engine = AIReportGenerationEngine()
 pdf_report_exporter = PDFReportExporter()
 ml_analytics_engine = MLAnalyticsEngine()
+fee_comparison_engine = FeeComparisonEngine()
 
 @app.post("/missed-conditions", response_model=MissedConditionAnalysis)
 def analyze_missed_conditions(
@@ -168,3 +171,8 @@ def generate_ai_report_pdf(request: AIReportRequest):
 def analyze_ml_portfolio(request: MLAnalyticsRequest):
     # Generate portfolio-level ML analytics and transaction drill-down insights.
     return ml_analytics_engine.analyze_portfolio(request)
+
+@app.post("/ml-core/compare-fees", response_model=FeeComparisonResponse)
+def compare_fees(request: FeeComparisonRequest):
+    # Compare current and optimized fees using deterministic and ML-assisted savings.
+    return fee_comparison_engine.compare_fees(request)

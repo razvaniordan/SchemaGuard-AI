@@ -422,3 +422,31 @@ class MLAnalyticsResponse(BaseModel):
     transactionDrilldown: List[TransactionDrilldownItem]
     warnings: List[str]
 
+class FeeComparisonRequest(BaseModel):
+    currentResult: RuleEngineResult
+    optimalResult: RuleEngineResult
+    monthlyTransactionVolume: Optional[int] = None
+    yearlyTransactionVolume: Optional[int] = None
+    currency: Optional[str] = "RON"
+
+
+class FeeComparisonResponse(BaseModel):
+    currentFeeAmount: float
+    optimizedFeeAmount: float
+    absoluteSavings: float
+    percentageSavings: float
+
+    mlPredictedSavings: float
+    mlConfidence: float
+    predictionSource: str
+    modelVersion: Optional[str] = None
+    fallbackUsed: bool
+    warnings: List[str]
+
+    monthlyProjectedSavings: Optional[float] = None
+    yearlyProjectedSavings: Optional[float] = None
+
+    currency: str
+    currentFeeAmountEur: Optional[float] = None
+    optimizedFeeAmountEur: Optional[float] = None
+    absoluteSavingsEur: Optional[float] = None
