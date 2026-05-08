@@ -96,8 +96,6 @@ class TransactionInput(BaseModel):
     amount: Optional[Decimal] = None
     currency: Optional[str] = None
 
-    # Backward-compatible with current Java Transaction.country
-    country: Optional[str] = None
 
     merchant_country: Optional[str] = Field(default=None, alias="merchantCountry")
     issuer_country: Optional[str] = Field(default=None, alias="issuerCountry")
@@ -109,7 +107,6 @@ class TransactionInput(BaseModel):
 
     channel: Optional[Channel] = None
     mcc: Optional[str] = None
-    transaction_type: Optional[str] = Field(default=None, alias="transactionType")
 
     three_ds: Optional[bool] = Field(default=None, alias="threeDS")
     eci: Optional[str] = None
@@ -117,7 +114,7 @@ class TransactionInput(BaseModel):
     auth_date: Optional[datetime | date] = Field(default=None, alias="authDate")
     clearing_date: Optional[datetime | date] = Field(default=None, alias="clearingDate")
 
-    @field_validator("currency", "country", "merchant_country", "issuer_country", mode="before")
+    @field_validator("currency", "merchant_country", "issuer_country", mode="before")
     @classmethod
     def normalize_uppercase_strings(cls, value: Any) -> Any:
         if value is None or value == "":
@@ -330,6 +327,62 @@ class FactTransactionRecord(BaseModel):
     rule_priority: int = Field(alias="rulePriority")
     classified_at: datetime = Field(alias="classifiedAt")
 
+class FeeCapInput(BaseModel):
+    """Optional min/max cap input for fee calculation."""
+
+    model_config = ConfigDict(
+        populate_by_name=True,
+        extra="forbid",
+        json_encoders={Decimal: lambda value: float(value)},
+    )
+
+    min_fee: Optional[Decimal] = Field(default=None, alias="minFee", ge=Decimal("0"))
+    max_fee: Optional[Decimal] = Field(default=None, alias="maxFee", ge=Decimal("0"))
+
+
+class FeeCalculationRequest(BaseModel):
+    """Standalone REST request for fee calculation."""
+
+    model_config = ConfigDict(
+        populate_by_name=True,
+        extra="forbid",
+        json_encoders={Decimal: lambda value: float(value)},
+    )
+
+    amount: Decimal = Field(gt=Decimal("0"))
+
+    # decimal fraction: 1.25% = 0.0125
+    fee_rate: Decimal = Field(alias="feeRate", ge=Decimal("0"))
+
+    currency: str = "EUR"
+    cap: Optional[FeeCapInput] = None
+
+    @field_validator("currency", mode="before")
+    @classmethod
+    def normalize_currency(cls, value: Any) -> str:
+        if value is None or value == "":
+            return "EUR"
+
+        return str(value).strip().upper()
+
+
+class FeeCalculationResult(BaseModel):
+    """Public fee calculation output."""
+
+    model_config = ConfigDict(
+        populate_by_name=True,
+        extra="forbid",
+        json_encoders={Decimal: lambda value: float(value)},
+    )
+
+    amount: Decimal
+    fee_rate: Decimal = Field(alias="feeRate")
+    raw_fee: Decimal = Field(alias="rawFee")
+    final_fee: Decimal = Field(alias="finalFee")
+    currency: str
+    cap_applied: Optional[str] = Field(default=None, alias="capApplied")
+    calculation_method: str = Field(alias="calculationMethod")
+    final_fee_eur: Optional[Decimal] = Field(default=None, alias="finalFeeEur")
 
 class ClassificationRequest(BaseModel):
     """REST request wrapper for future Java backend integration."""
@@ -353,7 +406,10 @@ class ClassificationResponse(BaseModel):
         default=None,
         alias="factTransaction",
     )
-
+    fee_calculation: Optional[FeeCalculationResult] = Field(
+        default=None,
+        alias="feeCalculation",
+    )
 
 def _category(
     *,
