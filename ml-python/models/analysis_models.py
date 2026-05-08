@@ -364,3 +364,61 @@ class AIReportResponse(BaseModel):
     rootCauseSummary: List[AIReportRootCauseSummary]
     portfolioDrivers: Dict[str, Any]
     warnings: List[str]
+
+class MLAnalyticsTransactionInput(BaseModel):
+    currentResult: RuleEngineResult
+    optimalResult: RuleEngineResult
+
+
+class MLAnalyticsRequest(BaseModel):
+    transactions: List[MLAnalyticsTransactionInput]
+
+
+class AnomalyTrendItem(BaseModel):
+    anomalyType: str
+    count: int
+    highSeverityCount: int
+
+
+class RecommendationSuccessMetric(BaseModel):
+    suggestionType: str
+    count: int
+    averageScore: float
+    totalExpectedImpact: float
+    estimatedSuccessRate: float
+
+
+class RootCauseDriverMetric(BaseModel):
+    condition: str
+    frequency: int
+    totalImpact: float
+    averageImpact: float
+    combinedScore: Optional[float] = None
+    mlDriverScore: Optional[float] = None
+    modelVersion: Optional[str] = None
+
+
+class MLConfidenceMetric(BaseModel):
+    algorithmUsed: str
+    count: int
+
+
+class TransactionDrilldownItem(BaseModel):
+    transactionId: Optional[str]
+    category: str
+    feeAmount: float
+    recommendations: List[str]
+    anomalies: List[str]
+    topRootCause: Optional[str]
+
+
+class MLAnalyticsResponse(BaseModel):
+    totalTransactions: int
+    anomalyTrends: List[AnomalyTrendItem]
+    recommendationSuccessMetrics: List[RecommendationSuccessMetric]
+    rootCauseDrivers: List[RootCauseDriverMetric]
+    portfolioOptimizationOpportunities: Dict[str, float]
+    mlConfidenceAnalytics: List[MLConfidenceMetric]
+    transactionDrilldown: List[TransactionDrilldownItem]
+    warnings: List[str]
+

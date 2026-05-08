@@ -4,6 +4,8 @@ from core.transaction_simulator import TransactionSimulator
 from core.missed_condition_detector import MissedConditionDetector
 from core.change_suggestion_engine import ChangeSuggestionEngine
 from core.ml_core import MLCore
+from core.engines.ml_analytics_engine import MLAnalyticsEngine
+from models.analysis_models import MLAnalyticsRequest, MLAnalyticsResponse
 from models.analysis_models import MLCoreRequest, MLCoreResponse
 from fastapi.responses import FileResponse
 from core.exporters.pdf_report_exporter import PDFReportExporter
@@ -38,6 +40,7 @@ ml_core = MLCore()
 recommendation_prioritization_engine = RecommendationPrioritizationEngine()
 ai_report_generation_engine = AIReportGenerationEngine()
 pdf_report_exporter = PDFReportExporter()
+ml_analytics_engine = MLAnalyticsEngine()
 
 @app.post("/missed-conditions", response_model=MissedConditionAnalysis)
 def analyze_missed_conditions(
@@ -160,3 +163,8 @@ def generate_ai_report_pdf(request: AIReportRequest):
         media_type="application/pdf",
         filename=f"{report.summary.reportName}.pdf",
     )
+
+@app.post("/ml-core/analytics/portfolio", response_model=MLAnalyticsResponse)
+def analyze_ml_portfolio(request: MLAnalyticsRequest):
+    # Generate portfolio-level ML analytics and transaction drill-down insights.
+    return ml_analytics_engine.analyze_portfolio(request)
