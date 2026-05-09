@@ -30,6 +30,7 @@ venv/
 
 # Logs
 logs/
+etl/logs/
 *.log
 
 # OS files

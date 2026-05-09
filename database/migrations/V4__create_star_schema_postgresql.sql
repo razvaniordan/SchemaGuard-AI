@@ -264,6 +264,22 @@ PARTITION BY RANGE (authorization_date_key);
 -- Partition examples.
 -- We can add more yearly partitions later as the project grows.
 
+CREATE TABLE analytics.fact_transaction_analysis_2020
+PARTITION OF analytics.fact_transaction_analysis
+FOR VALUES FROM (20200101) TO (20210101);
+
+CREATE TABLE analytics.fact_transaction_analysis_2021
+PARTITION OF analytics.fact_transaction_analysis
+FOR VALUES FROM (20210101) TO (20220101);
+
+CREATE TABLE analytics.fact_transaction_analysis_2022
+PARTITION OF analytics.fact_transaction_analysis
+FOR VALUES FROM (20220101) TO (20230101);
+
+CREATE TABLE analytics.fact_transaction_analysis_2023
+PARTITION OF analytics.fact_transaction_analysis
+FOR VALUES FROM (20230101) TO (20240101);
+
 CREATE TABLE analytics.fact_transaction_analysis_2024
 PARTITION OF analytics.fact_transaction_analysis
 FOR VALUES FROM (20240101) TO (20250101);
@@ -328,7 +344,7 @@ SELECT
     SUM(f.current_interchange_fee_amount) AS total_current_fee_amount,
     SUM(f.optimal_interchange_fee_amount) AS total_optimal_fee_amount,
     SUM(f.saving_amount) AS total_saving_amount,
-    AVG(f.saving_percentage) AS avg_saving_percentage
+    CAST(AVG(f.saving_percentage) AS NUMERIC(7, 4)) AS avg_saving_percentage
 FROM analytics.fact_transaction_analysis f
 JOIN analytics.dim_date d
     ON d.date_key = f.authorization_date_key
@@ -358,7 +374,7 @@ SELECT
     SUM(f.current_interchange_fee_amount) AS total_current_fee_amount,
     SUM(f.optimal_interchange_fee_amount) AS total_optimal_fee_amount,
     SUM(f.saving_amount) AS total_saving_amount,
-    AVG(f.saving_percentage) AS avg_saving_percentage
+    CAST(AVG(f.saving_percentage) AS NUMERIC(7, 4)) AS avg_saving_percentage
 FROM analytics.fact_transaction_analysis f
 JOIN analytics.dim_merchant m
     ON m.merchant_key = f.merchant_key
@@ -391,7 +407,7 @@ SELECT
     SUM(f.current_interchange_fee_amount) AS total_current_fee_amount,
     SUM(f.optimal_interchange_fee_amount) AS total_optimal_fee_amount,
     SUM(f.saving_amount) AS total_saving_amount,
-    AVG(f.saving_percentage) AS avg_saving_percentage
+    CAST(AVG(f.saving_percentage) AS NUMERIC(7, 4)) AS avg_saving_percentage
 FROM analytics.fact_transaction_analysis f
 JOIN analytics.dim_interchange_category current_cat
     ON current_cat.category_key = f.current_category_key
