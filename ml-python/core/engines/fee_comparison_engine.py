@@ -1,5 +1,6 @@
 from core.ml_core import MLCore
 from models.analysis_models import FeeComparisonRequest, FeeComparisonResponse
+from core.transaction_schema import normalize_transaction, get_payment_channel
 
 
 class FeeComparisonEngine:
@@ -14,6 +15,7 @@ class FeeComparisonEngine:
     def compare_fees(self, request: FeeComparisonRequest) -> FeeComparisonResponse:
         current = request.currentResult
         optimal = request.optimalResult
+        current_transaction = normalize_transaction(current.transaction)
 
         # Deterministic fee comparison based on current and optimized rule-engine outputs.
         absolute_savings = round(max(current.feeAmount - optimal.feeAmount, 0.0), 4)
@@ -26,18 +28,15 @@ class FeeComparisonEngine:
 
         # Build the feature payload expected by ImpactPredictionModel.
         features = {
-            "amount": current.transaction.get("amount"),
+            "amount": current_transaction.get("amount"),
             "feeRate": current.feeRate,
             "feeAmount": current.feeAmount,
-            "clearingDelayDays": current.transaction.get("clearingDelayDays"),
+            "clearingDelayDays": current_transaction.get("clearingDelayDays"),
             "category": current.category,
             "condition": self._infer_primary_condition(current, optimal),
-            "paymentChannel": current.transaction.get(
-                "paymentChannel",
-                current.transaction.get("channel"),
-            ),
-            "threeDS": current.transaction.get("threeDS"),
-            "mcc": current.transaction.get("mcc"),
+            "paymentChannel": get_payment_channel(current_transaction),
+            "threeDS": current_transaction.get("threeDS"),
+            "mcc": current_transaction.get("mcc"),
         }
 
         # MLCore will use the trained impact model if available.
@@ -89,18 +88,23 @@ class FeeComparisonEngine:
         )
 
     def _infer_primary_condition(self, current, optimal) -> str:
-        # Infer the main optimization condition from transaction differences.
-        current_tx = current.transaction
-        optimal_tx = optimal.transaction
+        current_tx = normalize_transaction(current.transaction)
+        optimal_tx = normalize_transaction(optimal.transaction)
 
         if current_tx.get("threeDS") != optimal_tx.get("threeDS"):
             return "3DS authentication"
+
+        if current_tx.get("clearingDelayDays") != optimal_tx.get("clearingDelayDays"):
+            return "clearing time"
 
         if current_tx.get("clearingDate") != optimal_tx.get("clearingDate"):
             return "clearing time"
 
         if current_tx.get("mcc") != optimal_tx.get("mcc"):
             return "MCC classification"
+
+        if current_tx.get("channel") != optimal_tx.get("channel"):
+            return "payment channel"
 
         return "UNKNOWN"
 

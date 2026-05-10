@@ -2,6 +2,13 @@ from copy import deepcopy
 from datetime import datetime
 from typing import Any, Dict, List
 
+from core.transaction_schema import (
+    REQUIRED_TRANSACTION_FIELDS,
+    VALID_CARD_TYPES,
+    VALID_CHANNELS,
+    normalize_transaction,
+)
+
 from models.analysis_models import (
     ChangeSuggestion,
     TransactionChange,
@@ -15,30 +22,22 @@ class TransactionSimulator:
         transaction: Dict[str, Any],
         suggestions: List[ChangeSuggestion],
     ) -> TransactionSimulationResponse:
-        # Keep the original transaction unchanged
-        original_transaction = deepcopy(transaction)
+        original_transaction = normalize_transaction(deepcopy(transaction))
+        simulated_transaction = normalize_transaction(deepcopy(transaction))
 
-        # Create a copy that we are allowed to modify
-        simulated_transaction = deepcopy(transaction)
-
-        # Store every change made during simulation
         audit_trail = []
 
-        # Apply each suggestion one by one
         for suggestion in suggestions:
             change = self._apply_suggestion(simulated_transaction, suggestion)
 
-            # Only store changes that were actually applied
             if change is not None:
                 audit_trail.append(change)
 
-        # Validate the simulated transaction after all changes
-        validation_messages = self._validate_transaction(simulated_transaction)
+        simulated_transaction = normalize_transaction(simulated_transaction)
 
-        # Transaction is valid if there are no validation messages
+        validation_messages = self._validate_transaction(simulated_transaction)
         is_valid = len(validation_messages) == 0
 
-        # Return original, modified version, audit trail, and validation result
         return TransactionSimulationResponse(
             originalTransaction=original_transaction,
             simulatedTransaction=simulated_transaction,
@@ -52,27 +51,19 @@ class TransactionSimulator:
         transaction: Dict[str, Any],
         suggestion: ChangeSuggestion,
     ) -> TransactionChange | None:
-        # Field to update, for example "threeDS" or "clearingDate"
         field = suggestion.field
 
-        # If the field does not exist, skip this suggestion
         if field not in transaction:
             return None
 
-        # Current value before change
         original_value = transaction.get(field)
-
-        # New value recommended by the suggestion
         new_value = suggestion.suggestedValue
 
-        # If value is already correct, no change is needed
         if original_value == new_value:
             return None
 
-        # Apply the suggested value
         transaction[field] = new_value
 
-        # Return audit information about this change
         return TransactionChange(
             field=field,
             originalValue=original_value,
@@ -85,31 +76,12 @@ class TransactionSimulator:
         self,
         transaction: Dict[str, Any],
     ) -> List[str]:
-        # Store validation messages here
         messages = []
 
-        # Required transaction fields from the project scope
-        required_fields = [
-            "amount",
-            "currency",
-            "country",
-            "cardType",
-            "channel",
-            "mcc",
-            "threeDS",
-            "authDate",
-            "clearingDate",
-            "cardBrand",
-            "cardPresence",
-            "transactionType",
-        ]
-
-        # Check if required fields are present
-        for field in required_fields:
-            if field not in transaction:
+        for field in REQUIRED_TRANSACTION_FIELDS:
+            if field not in transaction or transaction.get(field) is None:
                 messages.append(f"Missing required field: {field}")
 
-        # Validate transaction amount
         amount = transaction.get("amount")
 
         if amount is None:
@@ -119,36 +91,62 @@ class TransactionSimulator:
         elif amount <= 0:
             messages.append("Amount must be greater than zero")
 
-        # Validate 3DS value
         if "threeDS" in transaction and not isinstance(transaction["threeDS"], bool):
             messages.append("threeDS must be true or false")
 
-        # Validate dates
         auth_date = transaction.get("authDate")
         clearing_date = transaction.get("clearingDate")
 
         if auth_date and clearing_date:
             try:
-                auth_dt = datetime.fromisoformat(auth_date)
-                clearing_dt = datetime.fromisoformat(clearing_date)
+                auth_dt = datetime.fromisoformat(str(auth_date))
+                clearing_dt = datetime.fromisoformat(str(clearing_date))
 
                 if clearing_dt < auth_dt:
                     messages.append("Clearing date cannot be before authorization date")
             except ValueError:
-                messages.append("authDate and clearingDate must use ISO format YYYY-MM-DD")
+                messages.append("authDate and clearingDate must use ISO format")
 
-        # Validate card type
-        valid_card_types = {"Credit", "Debit", "Prepaid", "Commercial"}
         card_type = transaction.get("cardType")
 
-        if card_type and card_type not in valid_card_types:
+        if card_type and card_type not in VALID_CARD_TYPES:
             messages.append("cardType must be Credit, Debit, Prepaid, or Commercial")
 
-        # Validate channel
-        valid_channels = {"eCommerce", "POS", "MOTO"}
         channel = transaction.get("channel")
 
-        if channel and channel not in valid_channels:
+        if channel and channel not in VALID_CHANNELS:
             messages.append("channel must be eCommerce, POS, or MOTO")
+
+        card_presence = transaction.get("cardPresence")
+
+        if card_presence and card_presence not in {"card_present", "card_not_present"}:
+            messages.append("cardPresence must be card_present or card_not_present")
+
+        currency = transaction.get("currency")
+
+        if currency and not isinstance(currency, str):
+            messages.append("currency must be a string")
+
+        merchant_country = transaction.get("merchantCountry")
+        issuer_country = transaction.get("issuerCountry")
+
+        if merchant_country and not isinstance(merchant_country, str):
+            messages.append("merchantCountry must be a string")
+
+        if issuer_country and not isinstance(issuer_country, str):
+            messages.append("issuerCountry must be a string")
+
+        mcc = transaction.get("mcc")
+
+        if mcc and not isinstance(mcc, str):
+            messages.append("mcc must be a string")
+
+        clearing_delay_days = transaction.get("clearingDelayDays")
+
+        if clearing_delay_days is not None:
+            if not isinstance(clearing_delay_days, int):
+                messages.append("clearingDelayDays must be an integer")
+            elif clearing_delay_days < 0:
+                messages.append("clearingDelayDays cannot be negative")
 
         return messages

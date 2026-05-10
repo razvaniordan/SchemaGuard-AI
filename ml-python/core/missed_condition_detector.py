@@ -1,6 +1,6 @@
 from pathlib import Path  # Used to build file paths safely
 from typing import Any, Dict, List  # Type hints for better readability
-
+from core.transaction_schema import normalize_transaction
 from jinja2 import Environment, FileSystemLoader  # Used for generating explanations
 
 # Import data models (input/output structures)
@@ -31,8 +31,8 @@ class MissedConditionDetector:
         missed_conditions = []
 
         # Extract transaction data from both results
-        current_tx = current_result.transaction
-        optimal_tx = optimal_result.transaction
+        current_tx = normalize_transaction(current_result.transaction)
+        optimal_tx = normalize_transaction(optimal_result.transaction)
 
         # Find differences between current and optimal transaction
         differences = self._diff_transactions(current_tx, optimal_tx)
@@ -110,6 +110,9 @@ class MissedConditionDetector:
                     "optimal": optimal_value,
                 }
 
+        if "clearingDelayDays" in differences and "clearingDate" in differences:
+            differences.pop("clearingDate")
+
         return differences
 
     def _identify_condition(self, field: str) -> str | None:
@@ -121,22 +124,26 @@ class MissedConditionDetector:
                 return "clearing time"
             case "authDate":
                 return "authorization timing"
+            case "clearingDelayDays":
+                return "clearing time"
             case "mcc":
                 return "merchant category code"
             case "channel":
                 return "transaction channel"
             case "cardType":
                 return "card type"
-            case "country":
-                return "transaction geography"
+            case "merchantCountry":
+                return "merchant geography"
+            case "issuerCountry":
+                return "issuer geography"
+            case "region":
+                return "transaction region"
             case "currency":
                 return "currency"
             case "cardBrand":
                 return "card brand"
             case "cardPresence":
                 return "card presence"
-            case "transactionType":
-                return "transaction type"
             case _:
                 return None  # Ignore fields that are not important
 
@@ -156,11 +163,13 @@ class MissedConditionDetector:
             "mcc": 0.5,
             "channel": 0.5,
             "cardType": 0.4,
-            "country": 0.4,
+            "merchantCountry": 0.4,
+            "issuerCountry": 0.4,
+            "region": 0.4,
             "currency": 0.2,
             "cardBrand": 0.2,
             "cardPresence": 0.2,
-            "transactionType": 0.2,
+            "clearingDelayDays": 0.4,
         }
 
         # Get weight (default to small value if unknown field)
@@ -180,7 +189,17 @@ class MissedConditionDetector:
             return 0.3
 
         # Fields we are very confident about
-        high_confidence_fields = {"threeDS", "clearingDate", "mcc", "channel", "cardType"}
+        high_confidence_fields = {
+            "threeDS",
+            "clearingDate",
+            "mcc",
+            "channel",
+            "cardType",
+            "merchantCountry",
+            "issuerCountry",
+            "region",
+            "clearingDelayDays",
+        }
 
         # If field is important, return high confidence
         if field in high_confidence_fields:
