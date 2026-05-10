@@ -1,11 +1,13 @@
 from datetime import datetime
 from typing import Any, Dict, Optional
+
 from core.transaction_schema import normalize_transaction, get_payment_channel
 from models.analysis_models import (
     HistoricalMLRecord,
     RuleEngineResult,
     MLCoreResponse,
 )
+
 
 class TrainingDataBuilder:
     def build_record(
@@ -16,10 +18,14 @@ class TrainingDataBuilder:
         actual_outcome: Optional[Dict[str, Any]] = None,
         model_version: Optional[str] = None,
     ) -> HistoricalMLRecord:
-        transaction = current_result.transaction
-        transaction = normalize_transaction(transaction)
+        # Normalize transaction into the canonical ML schema.
+        # This ensures channel -> paymentChannel and calculates clearingDelayDays.
+        transaction = normalize_transaction(current_result.transaction)
+
         transaction_id = transaction.get("transactionId") or transaction.get("id")
 
+        # These features are used by all ML models during retraining.
+        # Keep feeRate as decimal fraction, for example 0.0125, not 1.25.
         features = {
             "transactionId": transaction_id,
 
@@ -48,6 +54,7 @@ class TrainingDataBuilder:
             "optimalFeeRate": optimal_result.feeRate,
             "optimalFeeAmount": optimal_result.feeAmount,
 
+            # Regression label for impact prediction.
             "label_actualSavings": round(
                 max(current_result.feeAmount - optimal_result.feeAmount, 0.0),
                 4,
@@ -57,6 +64,7 @@ class TrainingDataBuilder:
         labels = None
 
         if actual_outcome:
+            # These labels are used when real post-implementation results are available.
             labels = {
                 "actualFeeAmount": actual_outcome.get("actualFeeAmount"),
                 "actualSavings": actual_outcome.get("actualSavings"),
@@ -65,10 +73,7 @@ class TrainingDataBuilder:
                 ),
             }
 
-        simulated_savings = max(
-            current_result.feeAmount - optimal_result.feeAmount,
-            0,
-        )
+        simulated_savings = features["label_actualSavings"]
 
         return HistoricalMLRecord(
             transactionId=transaction_id,

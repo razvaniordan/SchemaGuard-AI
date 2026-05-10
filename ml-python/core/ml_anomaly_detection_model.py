@@ -251,7 +251,7 @@ class MLAnomalyDetectionModel:
 
         reasons = []
 
-        if row.get("feeRate", 0) and row.get("feeRate", 0) > 1.85:
+        if row.get("feeRate", 0) and row.get("feeRate", 0) > 0.02:
             reasons.append("fee rate is unusually high")
 
         if row.get("clearingDelayDays", 0) and row.get("clearingDelayDays", 0) >= 5:
