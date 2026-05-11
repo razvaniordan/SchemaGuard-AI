@@ -3,6 +3,8 @@ package com.example.api.entity;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.*;
 import lombok.*;
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
 
 import java.time.LocalDateTime;
 
@@ -24,7 +26,8 @@ public class TransactionSimulation {
     private Transaction transaction;
 
     @Pattern(regexp = "^[YN]$")
-    @Column(name = "simulated_is_3ds_authenticated", length = 1)
+    @JdbcTypeCode(SqlTypes.CHAR)
+    @Column(name = "simulated_is_3ds_authenticated", columnDefinition = "CHAR(1)")
     private String simulatedIs3dsAuthenticated;
 
     @Column(name = "simulated_eci_value", length = 2)

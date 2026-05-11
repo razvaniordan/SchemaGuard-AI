@@ -3,6 +3,8 @@ package com.example.api.entity;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.*;
 import lombok.*;
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
 
 @Getter
 @Setter
@@ -14,7 +16,8 @@ import lombok.*;
 public class Country {
     @Id
     @Pattern(regexp = "^[A-Z]{2}$")
-    @Column(name = "country_code", length = 2, nullable = false)
+    @JdbcTypeCode(SqlTypes.CHAR)
+    @Column(name = "country_code", columnDefinition = "CHAR(2)", nullable = false)
     private String countryCode;
 
     @NotBlank

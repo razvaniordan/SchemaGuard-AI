@@ -54,7 +54,7 @@ public class TransactionOptimizationRecommendation {
 
     @NotNull @Min(1)
     @Column(name = "priority_rank", nullable = false)
-    private Integer priorityRank;
+    private Long priorityRank;
 
     @NotNull
     @Column(name = "created_at", nullable = false)

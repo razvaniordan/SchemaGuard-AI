@@ -13,5 +13,5 @@ public record TransactionOptimizationRecommendationRequest(
         @Size(max = 500) String impactDescription,
         @DecimalMin("0.00") BigDecimal estimatedSavingAmount,
         @DecimalMin("0.0000") BigDecimal estimatedSavingPercentage,
-        @NotNull @Min(1) Integer priorityRank
+        @NotNull @Min(1) Long priorityRank
 ) {}

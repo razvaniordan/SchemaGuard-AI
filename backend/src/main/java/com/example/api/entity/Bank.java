@@ -3,6 +3,8 @@ package com.example.api.entity;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.*;
 import lombok.*;
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
 
 @Getter
 @Setter
@@ -23,6 +25,7 @@ public class Bank {
 
     @NotNull
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
-    @JoinColumn(name = "country_code", nullable = false, foreignKey = @ForeignKey(name = "fk_banks_country"))
+    @JdbcTypeCode(SqlTypes.CHAR)
+    @JoinColumn(name = "country_code", nullable = false, columnDefinition = "CHAR(2)", foreignKey = @ForeignKey(name = "fk_banks_country"))
     private Country country;
 }

@@ -3,6 +3,8 @@ package com.example.api.entity;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.*;
 import lombok.*;
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
 
 import java.math.BigDecimal;
 
@@ -27,7 +29,7 @@ public class InterchangeRule {
 
     @NotNull @Min(1)
     @Column(name = "rule_priority", nullable = false)
-    private Integer rulePriority;
+    private Long rulePriority;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "card_network_id", foreignKey = @ForeignKey(name = "fk_interchange_rules_network"))
@@ -49,8 +51,14 @@ public class InterchangeRule {
     @JoinColumn(name = "region_code", foreignKey = @ForeignKey(name = "fk_interchange_rules_region"))
     private Region region;
 
+    @NotBlank
     @Pattern(regexp = "^[YN]$")
-    @Column(name = "is_3ds_required", length = 1)
+    @JdbcTypeCode(SqlTypes.CHAR)
+    @Column(
+            name = "is_3ds_required",
+            nullable = false,
+            columnDefinition = "CHAR(1)"
+    )
     private String is3dsRequired;
 
     @Enumerated(EnumType.STRING)
@@ -71,8 +79,14 @@ public class InterchangeRule {
     @Builder.Default
     private BigDecimal fixedFeeAmount = BigDecimal.ZERO;
 
-    @NotBlank @Size(min = 3, max = 3)
-    @Column(name = "currency_code", length = 3, nullable = false)
+    @NotBlank
+    @Size(min = 3, max = 3)
+    @JdbcTypeCode(SqlTypes.CHAR)
+    @Column(
+            name = "currency_code",
+            nullable = false,
+            columnDefinition = "CHAR(3)"
+    )
     @Builder.Default
     private String currencyCode = "EUR";
 

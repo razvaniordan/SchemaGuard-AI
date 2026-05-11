@@ -7,7 +7,7 @@ import jakarta.validation.constraints.*;
 import java.math.BigDecimal;
 
 public record InterchangeRuleRequest(
-        @NotNull @Min(1) Integer rulePriority,
+        @NotNull @Min(1) Long rulePriority,
         Long cardNetworkId,
         String mccCode,
         Long cardTypeId,
