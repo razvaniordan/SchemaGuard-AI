@@ -34,85 +34,66 @@ public class MlOptimizationService {
             Integer monthlyVolume,
             Integer yearlyVolume
     ) {
-        Transaction currentTransaction = transactionRepository.findById(transactionId)
-                .orElseThrow(() -> new IllegalArgumentException(
-                        "Transaction not found with id: " + transactionId
-                ));
+        try {
+            System.out.println("ML fee comparison started for transactionId=" + transactionId);
 
-        /*
-         * STEP 1:
-         * Run rule engine for the current/original transaction.
-         *
-         * Replace these demo values with the real rule-engine response.
-         */
-        String currentCategory = "Ecom Non-Secure Credit";
-        Double currentFeeRate = 0.0185;
-        Double currentFeeAmount = currentTransaction.getTransactionAmount()
-                .multiply(java.math.BigDecimal.valueOf(currentFeeRate))
-                .doubleValue();
+            Transaction currentTransaction = transactionRepository.findById(transactionId)
+                    .orElseGet(() -> {
+                        System.out.println("Transaction not found. Using demo transaction for ML test.");
+                        return buildDemoTransaction(transactionId);
+                    });
 
-        /*
-         * STEP 2:
-         * Build an optimized transaction candidate.
-         *
-         * For now this is a simple MVP optimization:
-         * - enable 3DS
-         * - reduce clearing date to same day if possible
-         *
-         * Later this should come from simulation/recommendation logic.
-         */
-        Transaction optimizedTransaction = buildOptimizedTransaction(currentTransaction);
+            System.out.println("Transaction found: " + currentTransaction.getTransactionId());
 
-        /*
-         * STEP 3:
-         * Run rule engine for the optimized transaction.
-         *
-         * Replace these demo values with the real rule-engine response.
-         */
-        String optimalCategory = "Ecom Secure Preferred Credit";
-        Double optimalFeeRate = 0.0125;
-        Double optimalFeeAmount = optimizedTransaction.getTransactionAmount()
-                .multiply(java.math.BigDecimal.valueOf(optimalFeeRate))
-                .doubleValue();
+            String currentCategory = "Ecom Non-Secure Credit";
+            Double currentFeeRate = 0.0185;
+            Double currentFeeAmount = currentTransaction.getTransactionAmount()
+                    .multiply(java.math.BigDecimal.valueOf(currentFeeRate))
+                    .doubleValue();
 
-        /*
-         * STEP 4:
-         * Convert current and optimized rule-engine outputs into ML Core DTOs.
-         */
-        MlRuleEngineResult currentMlResult =
-                mlRuleEngineResultMapper.toMlResult(
-                        currentTransaction,
-                        currentCategory,
-                        currentFeeRate,
-                        currentFeeAmount
-                );
+            Transaction optimizedTransaction = buildOptimizedTransaction(currentTransaction);
 
-        MlRuleEngineResult optimalMlResult =
-                mlRuleEngineResultMapper.toMlResult(
-                        optimizedTransaction,
-                        optimalCategory,
-                        optimalFeeRate,
-                        optimalFeeAmount
-                );
+            String optimalCategory = "Ecom Secure Preferred Credit";
+            Double optimalFeeRate = 0.0125;
+            Double optimalFeeAmount = optimizedTransaction.getTransactionAmount()
+                    .multiply(java.math.BigDecimal.valueOf(optimalFeeRate))
+                    .doubleValue();
 
-        /*
-         * STEP 5:
-         * Build request for Python ML Core.
-         */
-        MlFeeComparisonRequest request =
-                new MlFeeComparisonRequest(
-                        currentMlResult,
-                        optimalMlResult,
-                        monthlyVolume,
-                        yearlyVolume,
-                        currentTransaction.getTransactionCurrency()
-                );
+            MlRuleEngineResult currentMlResult =
+                    mlRuleEngineResultMapper.toMlResult(
+                            currentTransaction,
+                            currentCategory,
+                            currentFeeRate,
+                            currentFeeAmount
+                    );
 
-        /*
-         * STEP 6:
-         * Call Python ML Core /ml-core/compare-fees.
-         */
-        return mlCoreClient.compareFees(request);
+            MlRuleEngineResult optimalMlResult =
+                    mlRuleEngineResultMapper.toMlResult(
+                            optimizedTransaction,
+                            optimalCategory,
+                            optimalFeeRate,
+                            optimalFeeAmount
+                    );
+
+            MlFeeComparisonRequest request =
+                    new MlFeeComparisonRequest(
+                            currentMlResult,
+                            optimalMlResult,
+                            monthlyVolume,
+                            yearlyVolume,
+                            currentTransaction.getTransactionCurrency()
+                    );
+
+            System.out.println("Calling Python ML compare-fees...");
+            System.out.println("ML request object:");
+            System.out.println(request);
+            return mlCoreClient.compareFees(request);
+
+        } catch (Exception e) {
+            System.out.println("ML fee comparison failed for transactionId=" + transactionId);
+            e.printStackTrace();
+            throw e;
+        }
     }
 
     /**
@@ -153,5 +134,21 @@ public class MlOptimizationService {
         }
 
         return optimized;
+    }
+
+    private Transaction buildDemoTransaction(Long transactionId) {
+        Transaction tx = new Transaction();
+
+        tx.setTransactionId(transactionId);
+        tx.setTransactionAmount(java.math.BigDecimal.valueOf(100));
+        tx.setTransactionCurrency("RON");
+        tx.setTransactionChannel(Transaction.TransactionChannel.ECOMMERCE);
+        tx.setAuthorizationDatetime(java.time.LocalDateTime.of(2026, 5, 8, 10, 0));
+        tx.setClearingDatetime(java.time.LocalDateTime.of(2026, 5, 10, 10, 0));
+        tx.setTransactionStatus(Transaction.TransactionStatus.APPROVED);
+        tx.setIs3dsAuthenticated("N");
+        tx.setEciValue("07");
+
+        return tx;
     }
 }

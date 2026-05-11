@@ -23,6 +23,7 @@ public class MlOptimizationController {
             @RequestParam(required = false) Integer monthlyVolume,
             @RequestParam(required = false) Integer yearlyVolume
     ) {
+        System.out.println("HIT fee-comparison endpoint, transactionId=" + transactionId);
         return mlOptimizationService.compareFees(
                 transactionId,
                 monthlyVolume,
