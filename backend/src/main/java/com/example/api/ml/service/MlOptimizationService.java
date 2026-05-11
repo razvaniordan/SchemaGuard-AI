@@ -2,10 +2,13 @@ package com.example.api.ml.service;
 
 import com.example.api.entity.Transaction;
 import com.example.api.ml.client.MlCoreClient;
-import com.example.api.ml.dto.MlFeeComparisonRequest;
-import com.example.api.ml.dto.MlRuleEngineResult;
+import com.example.api.ml.dto.*;
 import com.example.api.ml.mapper.MlRuleEngineResultMapper;
+import com.example.api.ml.mapper.MlTransactionMapper;
 import com.example.api.repository.TransactionRepository;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.JsonNode;
+import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
@@ -15,7 +18,9 @@ public class MlOptimizationService {
 
     private final TransactionRepository transactionRepository;
     private final MlRuleEngineResultMapper mlRuleEngineResultMapper;
+    private final MlTransactionMapper mlTransactionMapper;
     private final MlCoreClient mlCoreClient;
+    private final ObjectMapper objectMapper;
 
     // TODO: Replace with your real rule engine service.
     // private final RuleEngineService ruleEngineService;
@@ -150,5 +155,253 @@ public class MlOptimizationService {
         tx.setEciValue("07");
 
         return tx;
+    }
+
+    public String prioritizeRecommendations(Long transactionId) {
+
+        Transaction currentTransaction = transactionRepository.findById(transactionId)
+                .orElseGet(() -> buildDemoTransaction(transactionId));
+
+        String currentCategory = "Ecom Non-Secure Credit";
+        Double currentFeeRate = 0.0185;
+        Double currentFeeAmount = currentTransaction.getTransactionAmount()
+                .multiply(java.math.BigDecimal.valueOf(currentFeeRate))
+                .doubleValue();
+
+        Transaction optimizedTransaction = buildOptimizedTransaction(currentTransaction);
+
+        String optimalCategory = "Ecom Secure Preferred Credit";
+        Double optimalFeeRate = 0.0125;
+        Double optimalFeeAmount = optimizedTransaction.getTransactionAmount()
+                .multiply(java.math.BigDecimal.valueOf(optimalFeeRate))
+                .doubleValue();
+
+        MlRuleEngineResult currentMlResult =
+                mlRuleEngineResultMapper.toMlResult(
+                        currentTransaction,
+                        currentCategory,
+                        currentFeeRate,
+                        currentFeeAmount
+                );
+
+        MlRuleEngineResult optimalMlResult =
+                mlRuleEngineResultMapper.toMlResult(
+                        optimizedTransaction,
+                        optimalCategory,
+                        optimalFeeRate,
+                        optimalFeeAmount
+                );
+
+        MlRecommendationRequest request =
+                new MlRecommendationRequest(currentMlResult, optimalMlResult);
+
+        return mlCoreClient.prioritizeRecommendations(request);
+    }
+
+    public String simulateTransaction(Long transactionId) {
+
+        Transaction transaction = transactionRepository.findById(transactionId)
+                .orElseGet(() -> buildDemoTransaction(transactionId));
+
+        PythonTransactionInput pythonTransaction =
+                mlTransactionMapper.toMlInput(transaction);
+
+        MlRuleEngineResult currentResult =
+                mlRuleEngineResultMapper.toMlResult(
+                        transaction,
+                        "Ecom Non-Secure Credit",
+                        0.0185,
+                        transaction.getTransactionAmount()
+                                .multiply(java.math.BigDecimal.valueOf(0.0185))
+                                .doubleValue()
+                );
+
+        Transaction optimizedTransaction = buildOptimizedTransaction(transaction);
+
+        MlRuleEngineResult optimalResult =
+                mlRuleEngineResultMapper.toMlResult(
+                        optimizedTransaction,
+                        "Ecom Secure Preferred Credit",
+                        0.0125,
+                        optimizedTransaction.getTransactionAmount()
+                                .multiply(java.math.BigDecimal.valueOf(0.0125))
+                                .doubleValue()
+                );
+
+        MlRecommendationRequest recommendationRequest =
+                new MlRecommendationRequest(currentResult, optimalResult);
+
+        String recommendationsJson =
+                mlCoreClient.prioritizeRecommendations(recommendationRequest);
+
+        try {
+            JsonNode root = objectMapper.readTree(recommendationsJson);
+            JsonNode recommendationsNode = root.get("recommendations");
+
+            List<MlRecommendationSuggestion> recommendations =
+                    objectMapper.readerForListOf(MlRecommendationSuggestion.class)
+                            .readValue(recommendationsNode);
+
+            MlSimulationRequest simulationRequest =
+                    new MlSimulationRequest(pythonTransaction, recommendations);
+
+            return mlCoreClient.simulateTransaction(simulationRequest);
+
+        } catch (Exception e) {
+            throw new RuntimeException("Failed to simulate transaction", e);
+        }
+    }
+
+    public String missedConditions(Long transactionId) {
+
+        Transaction transaction = transactionRepository.findById(transactionId)
+                .orElseGet(() -> buildDemoTransaction(transactionId));
+
+        MlRuleEngineResult currentResult =
+                mlRuleEngineResultMapper.toMlResult(
+                        transaction,
+                        "Ecom Non-Secure Credit",
+                        0.0185,
+                        transaction.getTransactionAmount()
+                                .multiply(java.math.BigDecimal.valueOf(0.0185))
+                                .doubleValue()
+                );
+
+        Transaction optimizedTransaction = buildOptimizedTransaction(transaction);
+
+        MlRuleEngineResult optimalResult =
+                mlRuleEngineResultMapper.toMlResult(
+                        optimizedTransaction,
+                        "Ecom Secure Preferred Credit",
+                        0.0125,
+                        optimizedTransaction.getTransactionAmount()
+                                .multiply(java.math.BigDecimal.valueOf(0.0125))
+                                .doubleValue()
+                );
+
+        MlMissedConditionRequest request =
+                new MlMissedConditionRequest(currentResult, optimalResult);
+
+        return mlCoreClient.missedConditions(request);
+    }
+
+    public String detectPortfolioAnomalies() {
+
+        List<Transaction> transactions = transactionRepository.findAll();
+
+        List<MlRuleEngineResult> results = transactions.stream()
+                .map(transaction -> {
+                    double feeRate = resolveDemoFeeRate(transaction);
+                    double feeAmount = transaction.getTransactionAmount()
+                            .multiply(java.math.BigDecimal.valueOf(feeRate))
+                            .doubleValue();
+
+                    String category = resolveDemoCategory(transaction);
+
+                    return mlRuleEngineResultMapper.toMlResult(
+                            transaction,
+                            category,
+                            feeRate,
+                            feeAmount
+                    );
+                })
+                .toList();
+
+        return mlCoreClient.detectAnomalies(results);
+    }
+
+    private double resolveDemoFeeRate(Transaction transaction) {
+        if ("Y".equalsIgnoreCase(transaction.getIs3dsAuthenticated())) {
+            return 0.0125;
+        }
+
+        return 0.0185;
+    }
+
+    private String resolveDemoCategory(Transaction transaction) {
+        if ("Y".equalsIgnoreCase(transaction.getIs3dsAuthenticated())) {
+            return "Ecom Secure Preferred Credit";
+        }
+
+        return "Ecom Non-Secure Credit";
+    }
+
+    public MlOptimizationReportResponse optimizationReport(
+            Long transactionId,
+            Integer monthlyVolume,
+            Integer yearlyVolume
+    ) {
+        try {
+            String feeComparisonJson = compareFees(
+                    transactionId,
+                    monthlyVolume,
+                    yearlyVolume
+            );
+
+            String missedConditionsJson = missedConditions(transactionId);
+
+            String recommendationsJson = prioritizeRecommendations(transactionId);
+
+            String anomaliesJson = detectPortfolioAnomalies();
+
+            JsonNode feeComparison = objectMapper.readTree(feeComparisonJson);
+            JsonNode missedConditions = objectMapper.readTree(missedConditionsJson);
+            JsonNode rankedRecommendations = objectMapper.readTree(recommendationsJson);
+            JsonNode anomalyInsights = objectMapper.readTree(anomaliesJson);
+
+            JsonNode savingsProjections = objectMapper.createObjectNode()
+                    .put("monthlyProjectedSavings", feeComparison.path("monthlyProjectedSavings").asDouble())
+                    .put("yearlyProjectedSavings", feeComparison.path("yearlyProjectedSavings").asDouble())
+                    .put("currency", feeComparison.path("currency").asText())
+                    .put("mlPredictedSavings", feeComparison.path("mlPredictedSavings").asDouble())
+                    .put("mlConfidence", feeComparison.path("mlConfidence").asDouble());
+
+            String summary = buildOptimizationSummary(
+                    feeComparison,
+                    missedConditions,
+                    rankedRecommendations,
+                    anomalyInsights
+            );
+
+            return new MlOptimizationReportResponse(
+                    transactionId,
+                    summary,
+                    feeComparison,
+                    savingsProjections,
+                    missedConditions,
+                    rankedRecommendations,
+                    anomalyInsights
+            );
+
+        } catch (Exception e) {
+            throw new RuntimeException("Failed to build optimization report", e);
+        }
+    }
+
+    private String buildOptimizationSummary(
+            JsonNode feeComparison,
+            JsonNode missedConditions,
+            JsonNode rankedRecommendations,
+            JsonNode anomalyInsights
+    ) {
+        double absoluteSavings = feeComparison.path("absoluteSavings").asDouble();
+        double percentageSavings = feeComparison.path("percentageSavings").asDouble();
+        double monthlySavings = feeComparison.path("monthlyProjectedSavings").asDouble();
+        double yearlySavings = feeComparison.path("yearlyProjectedSavings").asDouble();
+        String currency = feeComparison.path("currency").asText("RON");
+
+        int missedCount = missedConditions.path("missedConditions").size();
+        int recommendationCount = rankedRecommendations.path("recommendations").size();
+        int anomalyCount = anomalyInsights.path("anomalies").size();
+
+        return "Optimization analysis found potential savings of "
+                + absoluteSavings + " " + currency
+                + " per transaction (" + percentageSavings + "%). "
+                + "Projected savings are "
+                + monthlySavings + " " + currency + " monthly and "
+                + yearlySavings + " " + currency + " yearly. "
+                + "Detected " + missedCount + " missed optimization conditions, "
+                + recommendationCount + " ranked recommendations, and "
+                + anomalyCount + " anomaly insights.";
     }
 }
