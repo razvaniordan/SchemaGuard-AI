@@ -58,6 +58,17 @@ backend_test:
 backend_build:
   stage: build
   image: maven:3.9-eclipse-temurin-21
+  services:
+    - name: postgres:16
+      alias: postgres
+  variables:
+    POSTGRES_DB: schemeguard_ai
+    POSTGRES_USER: schemeguard
+    POSTGRES_PASSWORD: schemeguard
+    SPRING_PROFILES_ACTIVE: postgres
+    SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/schemeguard_ai
+    SPRING_DATASOURCE_USERNAME: schemeguard
+    SPRING_DATASOURCE_PASSWORD: schemeguard
   script:
     - cd backend
     - mvn clean package
