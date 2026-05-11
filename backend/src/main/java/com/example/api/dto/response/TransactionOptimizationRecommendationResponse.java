@@ -13,6 +13,6 @@ public record TransactionOptimizationRecommendationResponse(
         String impactDescription,
         BigDecimal estimatedSavingAmount,
         BigDecimal estimatedSavingPercentage,
-        Integer priorityRank,
+        Long priorityRank,
         LocalDateTime createdAt
 ) {}

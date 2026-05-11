@@ -106,7 +106,7 @@ public class TransactionService {
 
                 transaction.getMerchant().getMerchantId(),
                 transaction.getMerchant().getMerchantName(),
-                transaction.getMerchant().getMcc().getMccCode(),
+                transaction.getMccCode().getMccCode(),
 
                 transaction.getCard().getCardId(),
                 transaction.getAcquiringPartner().getAcquiringPartnerId(),

@@ -7,7 +7,7 @@ import java.math.BigDecimal;
 
 public record InterchangeRuleResponse(
         Long ruleId,
-        Integer rulePriority,
+        Long rulePriority,
         Long cardNetworkId,
         String networkName,
         String mccCode,

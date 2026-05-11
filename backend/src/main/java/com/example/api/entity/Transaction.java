@@ -3,6 +3,8 @@ package com.example.api.entity;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.*;
 import lombok.*;
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
@@ -44,12 +46,17 @@ public class Transaction {
     @JoinColumn(name = "card_network_id", nullable = false, foreignKey = @ForeignKey(name = "fk_transactions_card_network"))
     private CardNetwork cardNetwork;
 
+    @NotNull @ManyToOne(fetch = FetchType.LAZY, optional = false)
+    @JoinColumn(name = "mcc_code", nullable = false, foreignKey = @ForeignKey(name = "fk_transactions_mcc_code"))
+    private MccCode mccCode;
+
     @NotNull @DecimalMin(value = "0.01")
     @Column(name = "transaction_amount", precision = 12, scale = 2, nullable = false)
     private BigDecimal transactionAmount;
 
     @NotBlank @Size(min = 3, max = 3)
-    @Column(name = "transaction_currency", length = 3, nullable = false)
+    @JdbcTypeCode(SqlTypes.CHAR)
+    @Column(name = "transaction_currency", columnDefinition = "CHAR(3)", nullable = false)
     private String transactionCurrency;
 
     @NotNull
@@ -70,7 +77,8 @@ public class Transaction {
     private TransactionStatus transactionStatus;
 
     @NotBlank @Pattern(regexp = "^[YN]$")
-    @Column(name = "is_3ds_authenticated", length = 1, nullable = false)
+    @JdbcTypeCode(SqlTypes.CHAR)
+    @Column(name = "is_3ds_authenticated", columnDefinition = "CHAR(1)", nullable = false)
     @Builder.Default
     private String is3dsAuthenticated = "N";
 
