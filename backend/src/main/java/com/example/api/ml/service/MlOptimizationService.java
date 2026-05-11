@@ -4,10 +4,13 @@ import com.example.api.entity.Transaction;
 import com.example.api.ml.client.MlCoreClient;
 import com.example.api.ml.dto.*;
 import com.example.api.ml.mapper.MlRuleEngineResultMapper;
+import com.example.api.ml.mapper.MlSimulationTransactionMapper;
 import com.example.api.ml.mapper.MlTransactionMapper;
 import com.example.api.repository.TransactionRepository;
+import com.example.api.ruleengine.service.RuleEngineService;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.JsonNode;
+import com.example.api.ruleengine.model.RuleEngineResult;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -21,9 +24,8 @@ public class MlOptimizationService {
     private final MlTransactionMapper mlTransactionMapper;
     private final MlCoreClient mlCoreClient;
     private final ObjectMapper objectMapper;
-
-    // TODO: Replace with your real rule engine service.
-    // private final RuleEngineService ruleEngineService;
+    private final RuleEngineService ruleEngineService;
+    private final MlSimulationTransactionMapper mlSimulationTransactionMapper;
 
     /**
      * Runs the full fee comparison flow:
@@ -48,36 +50,41 @@ public class MlOptimizationService {
                         return buildDemoTransaction(transactionId);
                     });
 
-            System.out.println("Transaction found: " + currentTransaction.getTransactionId());
-
-            String currentCategory = "Ecom Non-Secure Credit";
-            Double currentFeeRate = 0.0185;
-            Double currentFeeAmount = currentTransaction.getTransactionAmount()
-                    .multiply(java.math.BigDecimal.valueOf(currentFeeRate))
-                    .doubleValue();
-
-            Transaction optimizedTransaction = buildOptimizedTransaction(currentTransaction);
-
-            String optimalCategory = "Ecom Secure Preferred Credit";
-            Double optimalFeeRate = 0.0125;
-            Double optimalFeeAmount = optimizedTransaction.getTransactionAmount()
-                    .multiply(java.math.BigDecimal.valueOf(optimalFeeRate))
-                    .doubleValue();
+            RuleEngineResult currentRuleResult =
+                    ruleEngineService.evaluate(currentTransaction);
 
             MlRuleEngineResult currentMlResult =
                     mlRuleEngineResultMapper.toMlResult(
                             currentTransaction,
-                            currentCategory,
-                            currentFeeRate,
-                            currentFeeAmount
+                            currentRuleResult
                     );
+
+            Transaction candidateTransaction =
+                    buildOptimizationCandidate(currentTransaction);
+
+            RuleEngineResult candidateRuleResult =
+                    ruleEngineService.evaluate(candidateTransaction);
+
+            MlRuleEngineResult candidateMlResult =
+                    mlRuleEngineResultMapper.toMlResult(
+                            candidateTransaction,
+                            candidateRuleResult
+                    );
+
+            Transaction simulatedTransaction =
+                    simulateOptimizedTransaction(
+                            currentTransaction,
+                            currentMlResult,
+                            candidateMlResult
+                    );
+
+            RuleEngineResult optimalRuleResult =
+                    ruleEngineService.evaluate(simulatedTransaction);
 
             MlRuleEngineResult optimalMlResult =
                     mlRuleEngineResultMapper.toMlResult(
-                            optimizedTransaction,
-                            optimalCategory,
-                            optimalFeeRate,
-                            optimalFeeAmount
+                            simulatedTransaction,
+                            optimalRuleResult
                     );
 
             MlFeeComparisonRequest request =
@@ -89,15 +96,13 @@ public class MlOptimizationService {
                             currentTransaction.getTransactionCurrency()
                     );
 
-            System.out.println("Calling Python ML compare-fees...");
-            System.out.println("ML request object:");
-            System.out.println(request);
             return mlCoreClient.compareFees(request);
 
         } catch (Exception e) {
-            System.out.println("ML fee comparison failed for transactionId=" + transactionId);
-            e.printStackTrace();
-            throw e;
+            throw new RuntimeException(
+                    "ML fee comparison failed for transactionId=" + transactionId,
+                    e
+            );
         }
     }
 
@@ -108,37 +113,34 @@ public class MlOptimizationService {
      * This does not save anything to the database.
      * It only creates an in-memory transaction object used for ML/rule-engine simulation.
      */
-    private Transaction buildOptimizedTransaction(Transaction currentTransaction) {
-        Transaction optimized = new Transaction();
+    private Transaction buildOptimizationCandidate(Transaction currentTransaction) {
+        Transaction candidate = new Transaction();
 
-        optimized.setTransactionId(currentTransaction.getTransactionId());
-        optimized.setClient(currentTransaction.getClient());
-        optimized.setMerchant(currentTransaction.getMerchant());
-        optimized.setCard(currentTransaction.getCard());
-        optimized.setAcquiringPartner(currentTransaction.getAcquiringPartner());
-        optimized.setIssuerBank(currentTransaction.getIssuerBank());
-        optimized.setCardNetwork(currentTransaction.getCardNetwork());
-        optimized.setTransactionAmount(currentTransaction.getTransactionAmount());
-        optimized.setTransactionCurrency(currentTransaction.getTransactionCurrency());
-        optimized.setTransactionChannel(currentTransaction.getTransactionChannel());
-        optimized.setAuthorizationDatetime(currentTransaction.getAuthorizationDatetime());
-        optimized.setTransactionStatus(currentTransaction.getTransactionStatus());
-        optimized.setRegion(currentTransaction.getRegion());
+        candidate.setTransactionId(currentTransaction.getTransactionId());
+        candidate.setClient(currentTransaction.getClient());
+        candidate.setMerchant(currentTransaction.getMerchant());
+        candidate.setCard(currentTransaction.getCard());
+        candidate.setAcquiringPartner(currentTransaction.getAcquiringPartner());
+        candidate.setIssuerBank(currentTransaction.getIssuerBank());
+        candidate.setCardNetwork(currentTransaction.getCardNetwork());
+        candidate.setTransactionAmount(currentTransaction.getTransactionAmount());
+        candidate.setTransactionCurrency(currentTransaction.getTransactionCurrency());
+        candidate.setTransactionChannel(currentTransaction.getTransactionChannel());
+        candidate.setAuthorizationDatetime(currentTransaction.getAuthorizationDatetime());
+        candidate.setClearingDatetime(currentTransaction.getClearingDatetime());
+        candidate.setTransactionStatus(currentTransaction.getTransactionStatus());
+        candidate.setRegion(currentTransaction.getRegion());
 
-        // MVP optimization: enable 3DS.
-        optimized.setIs3dsAuthenticated("Y");
-        optimized.setEciValue("05");
+        candidate.setIs3dsAuthenticated("Y");
+        candidate.setEciValue("05");
 
-        // MVP optimization: faster clearing.
         if (currentTransaction.getAuthorizationDatetime() != null) {
-            optimized.setClearingDatetime(
+            candidate.setClearingDatetime(
                     currentTransaction.getAuthorizationDatetime().plusHours(8)
             );
-        } else {
-            optimized.setClearingDatetime(currentTransaction.getClearingDatetime());
         }
 
-        return optimized;
+        return candidate;
     }
 
     private Transaction buildDemoTransaction(Long transactionId) {
@@ -162,125 +164,126 @@ public class MlOptimizationService {
         Transaction currentTransaction = transactionRepository.findById(transactionId)
                 .orElseGet(() -> buildDemoTransaction(transactionId));
 
-        String currentCategory = "Ecom Non-Secure Credit";
-        Double currentFeeRate = 0.0185;
-        Double currentFeeAmount = currentTransaction.getTransactionAmount()
-                .multiply(java.math.BigDecimal.valueOf(currentFeeRate))
-                .doubleValue();
-
-        Transaction optimizedTransaction = buildOptimizedTransaction(currentTransaction);
-
-        String optimalCategory = "Ecom Secure Preferred Credit";
-        Double optimalFeeRate = 0.0125;
-        Double optimalFeeAmount = optimizedTransaction.getTransactionAmount()
-                .multiply(java.math.BigDecimal.valueOf(optimalFeeRate))
-                .doubleValue();
+        RuleEngineResult currentRuleResult =
+                ruleEngineService.evaluate(currentTransaction);
 
         MlRuleEngineResult currentMlResult =
                 mlRuleEngineResultMapper.toMlResult(
                         currentTransaction,
-                        currentCategory,
-                        currentFeeRate,
-                        currentFeeAmount
+                        currentRuleResult
                 );
 
-        MlRuleEngineResult optimalMlResult =
+        Transaction candidateTransaction =
+                buildOptimizationCandidate(currentTransaction);
+
+        RuleEngineResult candidateRuleResult =
+                ruleEngineService.evaluate(candidateTransaction);
+
+        MlRuleEngineResult candidateMlResult =
                 mlRuleEngineResultMapper.toMlResult(
-                        optimizedTransaction,
-                        optimalCategory,
-                        optimalFeeRate,
-                        optimalFeeAmount
+                        candidateTransaction,
+                        candidateRuleResult
                 );
 
         MlRecommendationRequest request =
-                new MlRecommendationRequest(currentMlResult, optimalMlResult);
+                new MlRecommendationRequest(
+                        currentMlResult,
+                        candidateMlResult
+                );
 
         return mlCoreClient.prioritizeRecommendations(request);
     }
 
     public String simulateTransaction(Long transactionId) {
 
-        Transaction transaction = transactionRepository.findById(transactionId)
+        Transaction currentTransaction = transactionRepository.findById(transactionId)
                 .orElseGet(() -> buildDemoTransaction(transactionId));
 
-        PythonTransactionInput pythonTransaction =
-                mlTransactionMapper.toMlInput(transaction);
+        RuleEngineResult currentRuleResult =
+                ruleEngineService.evaluate(currentTransaction);
 
-        MlRuleEngineResult currentResult =
+        MlRuleEngineResult currentMlResult =
                 mlRuleEngineResultMapper.toMlResult(
-                        transaction,
-                        "Ecom Non-Secure Credit",
-                        0.0185,
-                        transaction.getTransactionAmount()
-                                .multiply(java.math.BigDecimal.valueOf(0.0185))
-                                .doubleValue()
+                        currentTransaction,
+                        currentRuleResult
                 );
 
-        Transaction optimizedTransaction = buildOptimizedTransaction(transaction);
+        Transaction candidateTransaction =
+                buildOptimizationCandidate(currentTransaction);
 
-        MlRuleEngineResult optimalResult =
+        RuleEngineResult candidateRuleResult =
+                ruleEngineService.evaluate(candidateTransaction);
+
+        MlRuleEngineResult candidateMlResult =
                 mlRuleEngineResultMapper.toMlResult(
-                        optimizedTransaction,
-                        "Ecom Secure Preferred Credit",
-                        0.0125,
-                        optimizedTransaction.getTransactionAmount()
-                                .multiply(java.math.BigDecimal.valueOf(0.0125))
-                                .doubleValue()
+                        candidateTransaction,
+                        candidateRuleResult
                 );
 
-        MlRecommendationRequest recommendationRequest =
-                new MlRecommendationRequest(currentResult, optimalResult);
+        Transaction simulatedTransaction =
+                simulateOptimizedTransaction(
+                        currentTransaction,
+                        currentMlResult,
+                        candidateMlResult
+                );
 
-        String recommendationsJson =
-                mlCoreClient.prioritizeRecommendations(recommendationRequest);
+        PythonTransactionInput simulatedPythonTransaction =
+                mlTransactionMapper.toMlInput(simulatedTransaction);
 
         try {
-            JsonNode root = objectMapper.readTree(recommendationsJson);
-            JsonNode recommendationsNode = root.get("recommendations");
-
-            List<MlRecommendationSuggestion> recommendations =
-                    objectMapper.readerForListOf(MlRecommendationSuggestion.class)
-                            .readValue(recommendationsNode);
-
-            MlSimulationRequest simulationRequest =
-                    new MlSimulationRequest(pythonTransaction, recommendations);
-
-            return mlCoreClient.simulateTransaction(simulationRequest);
-
+            return objectMapper.writeValueAsString(simulatedPythonTransaction);
         } catch (Exception e) {
-            throw new RuntimeException("Failed to simulate transaction", e);
+            throw new RuntimeException("Failed to serialize simulated transaction", e);
         }
     }
 
     public String missedConditions(Long transactionId) {
 
-        Transaction transaction = transactionRepository.findById(transactionId)
+        Transaction currentTransaction = transactionRepository.findById(transactionId)
                 .orElseGet(() -> buildDemoTransaction(transactionId));
 
-        MlRuleEngineResult currentResult =
+        RuleEngineResult currentRuleResult =
+                ruleEngineService.evaluate(currentTransaction);
+
+        MlRuleEngineResult currentMlResult =
                 mlRuleEngineResultMapper.toMlResult(
-                        transaction,
-                        "Ecom Non-Secure Credit",
-                        0.0185,
-                        transaction.getTransactionAmount()
-                                .multiply(java.math.BigDecimal.valueOf(0.0185))
-                                .doubleValue()
+                        currentTransaction,
+                        currentRuleResult
                 );
 
-        Transaction optimizedTransaction = buildOptimizedTransaction(transaction);
+        Transaction candidateTransaction =
+                buildOptimizationCandidate(currentTransaction);
 
-        MlRuleEngineResult optimalResult =
+        RuleEngineResult candidateRuleResult =
+                ruleEngineService.evaluate(candidateTransaction);
+
+        MlRuleEngineResult candidateMlResult =
                 mlRuleEngineResultMapper.toMlResult(
-                        optimizedTransaction,
-                        "Ecom Secure Preferred Credit",
-                        0.0125,
-                        optimizedTransaction.getTransactionAmount()
-                                .multiply(java.math.BigDecimal.valueOf(0.0125))
-                                .doubleValue()
+                        candidateTransaction,
+                        candidateRuleResult
+                );
+
+        Transaction simulatedTransaction =
+                simulateOptimizedTransaction(
+                        currentTransaction,
+                        currentMlResult,
+                        candidateMlResult
+                );
+
+        RuleEngineResult optimalRuleResult =
+                ruleEngineService.evaluate(simulatedTransaction);
+
+        MlRuleEngineResult optimalMlResult =
+                mlRuleEngineResultMapper.toMlResult(
+                        simulatedTransaction,
+                        optimalRuleResult
                 );
 
         MlMissedConditionRequest request =
-                new MlMissedConditionRequest(currentResult, optimalResult);
+                new MlMissedConditionRequest(
+                        currentMlResult,
+                        optimalMlResult
+                );
 
         return mlCoreClient.missedConditions(request);
     }
@@ -289,41 +292,23 @@ public class MlOptimizationService {
 
         List<Transaction> transactions = transactionRepository.findAll();
 
+        if (transactions.isEmpty()) {
+            transactions = List.of(buildDemoTransaction(1L));
+        }
+
         List<MlRuleEngineResult> results = transactions.stream()
                 .map(transaction -> {
-                    double feeRate = resolveDemoFeeRate(transaction);
-                    double feeAmount = transaction.getTransactionAmount()
-                            .multiply(java.math.BigDecimal.valueOf(feeRate))
-                            .doubleValue();
-
-                    String category = resolveDemoCategory(transaction);
+                    RuleEngineResult ruleResult =
+                            ruleEngineService.evaluate(transaction);
 
                     return mlRuleEngineResultMapper.toMlResult(
                             transaction,
-                            category,
-                            feeRate,
-                            feeAmount
+                            ruleResult
                     );
                 })
                 .toList();
 
         return mlCoreClient.detectAnomalies(results);
-    }
-
-    private double resolveDemoFeeRate(Transaction transaction) {
-        if ("Y".equalsIgnoreCase(transaction.getIs3dsAuthenticated())) {
-            return 0.0125;
-        }
-
-        return 0.0185;
-    }
-
-    private String resolveDemoCategory(Transaction transaction) {
-        if ("Y".equalsIgnoreCase(transaction.getIs3dsAuthenticated())) {
-            return "Ecom Secure Preferred Credit";
-        }
-
-        return "Ecom Non-Secure Credit";
     }
 
     public MlOptimizationReportResponse optimizationReport(
@@ -403,5 +388,61 @@ public class MlOptimizationService {
                 + "Detected " + missedCount + " missed optimization conditions, "
                 + recommendationCount + " ranked recommendations, and "
                 + anomalyCount + " anomaly insights.";
+    }
+
+    private Transaction simulateOptimizedTransaction(
+            Transaction currentTransaction,
+            MlRuleEngineResult currentMlResult,
+            MlRuleEngineResult candidateMlResult
+    ) {
+        try {
+            MlRecommendationRequest recommendationRequest =
+                    new MlRecommendationRequest(
+                            currentMlResult,
+                            candidateMlResult
+                    );
+
+            String recommendationsJson =
+                    mlCoreClient.prioritizeRecommendations(recommendationRequest);
+
+            JsonNode recommendationsRoot =
+                    objectMapper.readTree(recommendationsJson);
+
+            JsonNode recommendationsNode =
+                    recommendationsRoot.get("recommendations");
+
+            List<MlRecommendationSuggestion> recommendations =
+                    objectMapper.convertValue(
+                            recommendationsNode,
+                            objectMapper.getTypeFactory()
+                                    .constructCollectionType(
+                                            List.class,
+                                            MlRecommendationSuggestion.class
+                                    )
+                    );
+
+            MlSimulationRequest simulationRequest =
+                    new MlSimulationRequest(
+                            mlTransactionMapper.toMlInput(currentTransaction),
+                            recommendations
+                    );
+
+            String simulationJson =
+                    mlCoreClient.simulateTransaction(simulationRequest);
+
+            JsonNode simulationRoot =
+                    objectMapper.readTree(simulationJson);
+
+            JsonNode simulatedTransactionNode =
+                    simulationRoot.get("simulatedTransaction");
+
+            return mlSimulationTransactionMapper.toSimulatedTransaction(
+                    currentTransaction,
+                    simulatedTransactionNode
+            );
+
+        } catch (Exception e) {
+            throw new RuntimeException("Failed to simulate optimized transaction", e);
+        }
     }
 }

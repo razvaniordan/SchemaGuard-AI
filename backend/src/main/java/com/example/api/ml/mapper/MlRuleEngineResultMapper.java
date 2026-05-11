@@ -4,6 +4,7 @@ import com.example.api.entity.Transaction;
 import com.example.api.ml.dto.MlRuleEngineResult;
 import com.example.api.ml.dto.PythonTransactionInput;
 import lombok.RequiredArgsConstructor;
+import com.example.api.ruleengine.model.RuleEngineResult;
 import org.springframework.stereotype.Component;
 
 @Component
@@ -61,5 +62,17 @@ public class MlRuleEngineResultMapper {
         }
 
         return feeRate;
+    }
+
+    public MlRuleEngineResult toMlResult(
+            Transaction transaction,
+            RuleEngineResult ruleEngineResult
+    ) {
+        return toMlResult(
+                transaction,
+                ruleEngineResult.category(),
+                ruleEngineResult.feeRate(),
+                ruleEngineResult.feeAmount().doubleValue()
+        );
     }
 }
