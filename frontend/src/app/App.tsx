@@ -1,128 +1,234 @@
-import { Button, Card, Input } from '../components/ui';
-import { usePreferencesStore, useTransactionStore } from '../store';
+import { useMemo, useState } from 'react';
+import { TransactionDetailsPage } from '../pages/TransactionDetailsPage';
+import { TransactionsPage } from '../pages/TransactionsPage';
+import { OptimizationReportPage } from '../pages/OptimizationReportPage';
+import { SavingsProjectionPage } from '../pages/SavingsProjectionPage';
+import { RecommendationsPage } from '../pages/RecommendationsPage';
+import { MissedConditionsPage } from '../pages/MissedConditionsPage';
+
+type PageKey =
+  | 'dashboard'
+  | 'transactions'
+  | 'transaction-details'
+  | 'optimization-report'
+  | 'savings-projections'
+  | 'recommendations'
+  | 'missed-conditions'
+  | 'anomalies'
+  | 'settings';
+
+type NavItem = {
+  key: PageKey;
+  label: string;
+  description: string;
+};
+
+const navItems: NavItem[] = [
+  {
+    key: 'dashboard',
+    label: 'Dashboard',
+    description: 'Portfolio overview and optimization value.',
+  },
+  {
+    key: 'transactions',
+    label: 'Transactions',
+    description: 'Mock transaction list with filters.',
+  },
+  {
+    key: 'transaction-details',
+    label: 'Transaction Details',
+    description: 'Detailed transaction context and fee inputs.',
+  },
+  {
+    key: 'optimization-report',
+    label: 'Optimization Report',
+    description: 'Current fee, optimized fee, savings and projections.',
+  },
+  {
+    key: 'recommendations',
+    label: 'Recommendations',
+    description: 'Ranked optimization recommendations.',
+  },
+  {
+    key: 'missed-conditions',
+    label: 'Missed Conditions',
+    description: 'Explain why better fee qualification was missed.',
+  },
+  {
+    key: 'savings-projections',
+    label: 'Savings Projections',
+    description: 'Monthly, yearly and per-transaction savings.',
+  },
+  {
+    key: 'anomalies',
+    label: 'Anomalies',
+    description: 'Detected anomalies and explanations.',
+  },
+  {
+    key: 'settings',
+    label: 'Settings / Mock Data',
+    description: 'Frontend-only configuration and mock data preview.',
+  },
+];
+
+function PlaceholderPage({
+  title,
+  description,
+}: {
+  title: string;
+  description: string;
+}) {
+  return (
+    <section className="rounded-2xl border border-brand-border bg-white p-6 shadow-sm">
+      <p className="text-sm font-medium uppercase tracking-wide text-brand-primary">
+        SchemeGuard AI
+      </p>
+
+      <h1 className="mt-2 text-2xl font-semibold text-brand-text sm:text-3xl">
+        {title}
+      </h1>
+
+      <p className="mt-3 max-w-3xl text-sm leading-6 text-brand-muted sm:text-base">
+        {description}
+      </p>
+
+      <div className="mt-6 rounded-xl border border-dashed border-brand-border bg-slate-50 p-5">
+        <p className="text-sm font-medium text-brand-text">UI placeholder</p>
+        <p className="mt-1 text-sm text-brand-muted">
+          Această pagină este pregătită pentru următoarele story-uri UI.
+        </p>
+      </div>
+    </section>
+  );
+}
 
 export default function App() {
-  const draft = useTransactionStore((state) => state.draft);
-  const result = useTransactionStore((state) => state.result);
-  const status = useTransactionStore((state) => state.status);
-  const error = useTransactionStore((state) => state.error);
-  const updateDraft = useTransactionStore((state) => state.updateDraft);
-  const calculateFee = useTransactionStore((state) => state.calculateFee);
+  const [activePage, setActivePage] = useState<PageKey>('dashboard');
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [selectedTransactionId, setSelectedTransactionId] = useState<
+    string | null
+  >(null);
 
-  const setPreferredCurrency = usePreferencesStore(
-    (state) => state.setPreferredCurrency,
-  );
+  const currentPage = useMemo<NavItem>(
+  () =>
+    navItems.find((item) => item.key === activePage) ?? {
+      key: 'dashboard',
+      label: 'Dashboard',
+      description: 'Portfolio overview and optimization value.',
+    },
+  [activePage],
+);
 
-  const handleSubmit = (event: React.FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
-    void calculateFee();
+  const handleNavigate = (page: PageKey) => {
+    setActivePage(page);
+    setIsMobileMenuOpen(false);
   };
 
   return (
-    <main className="min-h-screen bg-slate-50 px-4 py-6 sm:px-6 lg:px-8">
-      <section className="mx-auto flex w-full max-w-5xl flex-col gap-6">
-        <div className="flex flex-col gap-2 text-center sm:text-left">
-          <p className="text-sm font-medium uppercase tracking-wide text-brand-muted">
-            SchemeGuard AI
-          </p>
-          <h1 className="text-3xl font-semibold text-brand-text sm:text-4xl">
-            Fee qualification dashboard
-          </h1>
-          <p className="max-w-2xl text-sm text-brand-muted sm:text-base">
-            Responsive frontend shell with Tailwind CSS, reusable UI components,
-            and state-managed transaction flow.
-          </p>
+    <div className="min-h-screen bg-slate-50 text-brand-text">
+      <header className="sticky top-0 z-20 border-b border-brand-border bg-white/95 backdrop-blur lg:hidden">
+        <div className="flex items-center justify-between px-4 py-4">
+          <div>
+            <p className="text-xs font-semibold uppercase tracking-wide text-brand-primary">
+              SchemeGuard AI
+            </p>
+            <p className="text-sm font-medium text-brand-text">
+              {currentPage.label}
+            </p>
+          </div>
+
+          <button
+            type="button"
+            onClick={() => setIsMobileMenuOpen((value) => !value)}
+            className="rounded-lg border border-brand-border px-3 py-2 text-sm font-medium text-brand-text"
+          >
+            Menu
+          </button>
         </div>
 
-        <div className="grid grid-cols-1 gap-6 lg:grid-cols-[minmax(0,2fr)_minmax(280px,1fr)]">
-          <Card
-            title="Transaction details"
-            description="Enter transaction data to calculate interchange fee qualification."
-          >
-            <form onSubmit={handleSubmit} className="grid gap-4">
-              <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-                <Input
-                  label="Merchant name"
-                  name="merchantName"
-                  placeholder="Enter merchant name"
-                  value={draft.merchantName}
-                  onChange={(event) => updateDraft('merchantName', event.target.value)}
-                />
+        {isMobileMenuOpen && (
+          <nav className="border-t border-brand-border bg-white px-4 py-3">
+            <div className="grid gap-2">
+              {navItems.map((item) => (
+                <button
+                  key={item.key}
+                  type="button"
+                  onClick={() => handleNavigate(item.key)}
+                  className={`rounded-lg px-3 py-2 text-left text-sm font-medium transition ${
+                    activePage === item.key
+                      ? 'bg-blue-50 text-brand-primary'
+                      : 'text-brand-muted hover:bg-slate-100 hover:text-brand-text'
+                  }`}
+                >
+                  {item.label}
+                </button>
+              ))}
+            </div>
+          </nav>
+        )}
+      </header>
 
-                <Input
-                  label="Amount"
-                  name="amount"
-                  type="number"
-                  placeholder="100.00"
-                  value={draft.amount}
-                  onChange={(event) => updateDraft('amount', event.target.value)}
-                />
+      <div className="lg:grid lg:grid-cols-[280px_1fr]">
+        <aside className="hidden min-h-screen border-r border-brand-border bg-white p-5 lg:block">
+          <div className="mb-8">
+            <p className="text-xs font-semibold uppercase tracking-wide text-brand-primary">
+              SchemeGuard AI
+            </p>
+            <h2 className="mt-2 text-xl font-semibold text-brand-text">
+              Fee Optimization
+            </h2>
+            <p className="mt-1 text-sm text-brand-muted">
+              Frontend MVP with mock navigation.
+            </p>
+          </div>
 
-                <Input
-                  label="Currency"
-                  name="currency"
-                  placeholder="USD"
-                  value={draft.currency}
-                  onChange={(event) => {
-                    updateDraft('currency', event.target.value);
-                    setPreferredCurrency(event.target.value);
-                  }}
-                />
+          <nav className="grid gap-2">
+            {navItems.map((item) => (
+              <button
+                key={item.key}
+                type="button"
+                onClick={() => handleNavigate(item.key)}
+                className={`rounded-xl px-4 py-3 text-left transition ${
+                  activePage === item.key
+                    ? 'bg-blue-50 text-brand-primary shadow-sm'
+                    : 'text-brand-muted hover:bg-slate-100 hover:text-brand-text'
+                }`}
+              >
+                <span className="block text-sm font-semibold">{item.label}</span>
+                <span className="mt-1 block text-xs leading-5">
+                  {item.description}
+                </span>
+              </button>
+            ))}
+          </nav>
+        </aside>
 
-                <Input
-                  label="MCC"
-                  name="mcc"
-                  placeholder="5411"
-                  value={draft.mcc}
-                  onChange={(event) => updateDraft('mcc', event.target.value)}
-                />
-              </div>
-
-              <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
-                <Button type="submit" disabled={status === 'loading'}>
-                  {status === 'loading' ? 'Calculating...' : 'Calculate fee'}
-                </Button>
-
-                <Button type="button" variant="secondary">
-                  Save draft
-                </Button>
-              </div>
-
-              {error ? (
-                <p role="alert" className="text-sm text-brand-danger">
-                  {error}
-                </p>
-              ) : null}
-            </form>
-          </Card>
-
-          <Card
-            title="Calculation result"
-            description="Result summary will appear after API calculation."
-          >
-            {result ? (
-              <div className="grid gap-3 text-sm">
-                <p>
-                  <span className="font-medium">Interchange fee:</span>{' '}
-                  {result.interchangeFee}
-                </p>
-                <p>
-                  <span className="font-medium">Effective rate:</span>{' '}
-                  {result.effectiveRate}
-                </p>
-                <p>
-                  <span className="font-medium">Status:</span>{' '}
-                  {result.qualificationStatus}
-                </p>
-              </div>
-            ) : (
-              <p className="text-sm text-brand-muted">
-                No calculation result yet.
-              </p>
-            )}
-          </Card>
-        </div>
-      </section>
-    </main>
+        <main className="p-4 sm:p-6 lg:p-8">
+        {activePage === 'transactions' ? (
+          <TransactionsPage
+            onSelectTransaction={(transactionId) => {
+              setSelectedTransactionId(transactionId);
+              setActivePage('transaction-details');
+            }}
+          />
+        ) : activePage === 'transaction-details' ? (
+          <TransactionDetailsPage transactionId={selectedTransactionId} />
+        ) : activePage === 'optimization-report' ? (
+          <OptimizationReportPage transactionId={selectedTransactionId} />
+        ) : activePage === 'savings-projections' ? (
+          <SavingsProjectionPage transactionId={selectedTransactionId} />
+        ) : activePage === 'recommendations' ? (
+          <RecommendationsPage />
+        ) : activePage === 'missed-conditions' ? (
+          <MissedConditionsPage transactionId={selectedTransactionId} />
+        ) : (
+          <PlaceholderPage
+            title={currentPage.label}
+            description={currentPage.description}
+          />
+        )}
+        </main>
+      </div>
+    </div>
   );
 }

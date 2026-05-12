@@ -5,6 +5,6 @@ import App from './App';
 describe('App', () => {
   it('renders the application title', () => {
     render(<App />);
-    expect(screen.getByText(/SchemeGuard AI/i)).toBeInTheDocument();
+    expect(screen.getAllByText(/SchemeGuard AI/i)[0]).toBeInTheDocument();
   });
 });
