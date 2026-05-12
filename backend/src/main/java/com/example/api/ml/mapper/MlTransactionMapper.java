@@ -98,9 +98,10 @@ public class MlTransactionMapper {
     }
 
     private String getMccCode(Transaction tx) {
-        return tx.getMerchant() != null && tx.getMerchant().getMcc() != null
-                ? tx.getMerchant().getMcc().getMccCode()
-                : null;
+        if (tx.getMccCode() == null) {
+            return null;
+        }
+        return tx.getMccCode().getMccCode();
     }
 
     /**
