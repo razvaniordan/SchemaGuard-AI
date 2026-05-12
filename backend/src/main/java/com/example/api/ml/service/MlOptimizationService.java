@@ -2,6 +2,14 @@ package com.example.api.ml.service;
 
 import com.example.api.entity.Transaction;
 import com.example.api.entity.MccCode;
+import com.example.api.entity.Client;
+import com.example.api.entity.Merchant;
+import com.example.api.entity.Card;
+import com.example.api.entity.AcquiringPartner;
+import com.example.api.entity.Bank;
+import com.example.api.entity.CardNetwork;
+import com.example.api.entity.Region;
+import com.example.api.entity.MccCode;
 import com.example.api.ml.client.MlCoreClient;
 import com.example.api.ml.dto.*;
 import com.example.api.ml.mapper.MlRuleEngineResultMapper;
@@ -146,20 +154,62 @@ public class MlOptimizationService {
     }
 
     private Transaction buildDemoTransaction(Long transactionId) {
+
         Transaction tx = new Transaction();
+
+        Client client = new Client();
+        client.setClientId(1L);
+        client.setClientName("Demo Client");
+
+        Merchant merchant = new Merchant();
+        merchant.setMerchantId(1L);
+        merchant.setMerchantName("Demo Merchant");
 
         MccCode demoMccCode = new MccCode();
         demoMccCode.setMccCode("5411");
         demoMccCode.setMccDescription("Grocery Stores, Supermarkets");
 
+        Card card = new Card();
+        card.setCardId(1L);
+
+        AcquiringPartner acquiringPartner = new AcquiringPartner();
+        acquiringPartner.setAcquiringPartnerId(1L);
+
+        Bank issuerBank = new Bank();
+        issuerBank.setBankId(1L);
+
+        CardNetwork cardNetwork = new CardNetwork();
+        cardNetwork.setCardNetworkId(1L);
+
+        Region region = new Region();
+        region.setRegionCode("EU");
+
         tx.setTransactionId(transactionId);
+
+        tx.setClient(client);
+        tx.setMerchant(merchant);
         tx.setMccCode(demoMccCode);
+        tx.setCard(card);
+        tx.setAcquiringPartner(acquiringPartner);
+        tx.setIssuerBank(issuerBank);
+        tx.setCardNetwork(cardNetwork);
+        tx.setRegion(region);
+
         tx.setTransactionAmount(java.math.BigDecimal.valueOf(100));
         tx.setTransactionCurrency("RON");
+
         tx.setTransactionChannel(Transaction.TransactionChannel.ECOMMERCE);
-        tx.setAuthorizationDatetime(java.time.LocalDateTime.of(2026, 5, 8, 10, 0));
-        tx.setClearingDatetime(java.time.LocalDateTime.of(2026, 5, 10, 10, 0));
+
+        tx.setAuthorizationDatetime(
+                java.time.LocalDateTime.of(2026, 5, 8, 10, 0)
+        );
+
+        tx.setClearingDatetime(
+                java.time.LocalDateTime.of(2026, 5, 10, 10, 0)
+        );
+
         tx.setTransactionStatus(Transaction.TransactionStatus.APPROVED);
+
         tx.setIs3dsAuthenticated("N");
         tx.setEciValue("07");
 
