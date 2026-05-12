@@ -60,6 +60,22 @@ services:
       rule-engine-python:
         condition: service_healthy
 
+  etl:
+    build:
+      context: .
+      dockerfile: ./etl/Dockerfile
+    container_name: schemeguard-etl
+    environment:
+      DATABASE_URL: postgresql://schemeguard:schemeguard@postgres:5432/schemeguard_ai
+      ETL_BATCH_SIZE: 1000
+      ETL_INCREMENTAL_HOURS: 24
+      ETL_LOG_LEVEL: INFO
+      ETL_LOG_FILE: etl/logs/etl.log
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: unless-stopped
+
   frontend:
     image: node:20
     container_name: schemeguard-frontend

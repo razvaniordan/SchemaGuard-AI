@@ -4,7 +4,7 @@ ETL Scheduler.
 Schedule the ETL pipeline to run at regular intervals using APScheduler.
 
 Usage:
-  python etl/scheduler.py --interval 15    # Run every 15 minutes
+  python etl/scheduler.py --interval 1    # Run every 1 minute
 """
 
 import argparse
@@ -69,8 +69,8 @@ def main():
     parser.add_argument(
         "--interval",
         type=int,
-        default=15,
-        help="Interval in minutes between ETL runs (default: 15)",
+        default=1,
+        help="Interval in minutes between ETL runs (default: 1)",
     )
     parser.add_argument(
         "--conn-string",
