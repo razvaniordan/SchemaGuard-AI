@@ -36,6 +36,7 @@ public class MlSimulationTransactionMapper {
         clone.setTransactionId(original.getTransactionId());
         clone.setClient(original.getClient());
         clone.setMerchant(original.getMerchant());
+        clone.setMccCode(original.getMccCode());
         clone.setCard(original.getCard());
         clone.setAcquiringPartner(original.getAcquiringPartner());
         clone.setIssuerBank(original.getIssuerBank());

@@ -1,6 +1,7 @@
 package com.example.api.ml.service;
 
 import com.example.api.entity.Transaction;
+import com.example.api.entity.MccCode;
 import com.example.api.ml.client.MlCoreClient;
 import com.example.api.ml.dto.*;
 import com.example.api.ml.mapper.MlRuleEngineResultMapper;
@@ -119,6 +120,7 @@ public class MlOptimizationService {
         candidate.setTransactionId(currentTransaction.getTransactionId());
         candidate.setClient(currentTransaction.getClient());
         candidate.setMerchant(currentTransaction.getMerchant());
+        candidate.setMccCode(currentTransaction.getMccCode());
         candidate.setCard(currentTransaction.getCard());
         candidate.setAcquiringPartner(currentTransaction.getAcquiringPartner());
         candidate.setIssuerBank(currentTransaction.getIssuerBank());
@@ -146,7 +148,12 @@ public class MlOptimizationService {
     private Transaction buildDemoTransaction(Long transactionId) {
         Transaction tx = new Transaction();
 
+        MccCode demoMccCode = new MccCode();
+        demoMccCode.setMccCode("5411");
+        demoMccCode.setMccDescription("Grocery Stores, Supermarkets");
+
         tx.setTransactionId(transactionId);
+        tx.setMccCode(demoMccCode);
         tx.setTransactionAmount(java.math.BigDecimal.valueOf(100));
         tx.setTransactionCurrency("RON");
         tx.setTransactionChannel(Transaction.TransactionChannel.ECOMMERCE);
