@@ -6,6 +6,7 @@ import com.example.api.entity.*;
 import com.example.api.repository.*;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import com.example.api.repository.MccCodeRepository;
 
 import java.util.List;
 
@@ -20,6 +21,7 @@ public class TransactionService {
     private final BankRepository bankRepository;
     private final CardNetworkRepository cardNetworkRepository;
     private final RegionRepository regionRepository;
+    private final MccCodeRepository mccCodeRepository;
 
     public TransactionService(
             TransactionRepository transactionRepository,
@@ -29,7 +31,8 @@ public class TransactionService {
             AcquiringPartnerRepository acquiringPartnerRepository,
             BankRepository bankRepository,
             CardNetworkRepository cardNetworkRepository,
-            RegionRepository regionRepository
+            RegionRepository regionRepository,
+            MccCodeRepository mccCodeRepository
     ) {
         this.transactionRepository = transactionRepository;
         this.clientRepository = clientRepository;
@@ -39,6 +42,7 @@ public class TransactionService {
         this.bankRepository = bankRepository;
         this.cardNetworkRepository = cardNetworkRepository;
         this.regionRepository = regionRepository;
+        this.mccCodeRepository = mccCodeRepository;
     }
 
     @Transactional(readOnly = true)
@@ -56,6 +60,9 @@ public class TransactionService {
 
         Merchant merchant = merchantRepository.findById(request.merchantId())
                 .orElseThrow(() -> new IllegalArgumentException("Merchant not found: " + request.merchantId()));
+
+        MccCode mccCode = mccCodeRepository.findByMccCode(request.mccCode())
+                .orElseThrow(() -> new IllegalArgumentException("MCC code not found: " + request.mccCode()));
 
         Card card = cardRepository.findById(request.cardId())
                 .orElseThrow(() -> new IllegalArgumentException("Card not found: " + request.cardId()));
@@ -75,6 +82,7 @@ public class TransactionService {
         Transaction transaction = Transaction.builder()
                 .client(client)
                 .merchant(merchant)
+                .mccCode(mccCode)
                 .card(card)
                 .acquiringPartner(acquiringPartner)
                 .issuerBank(issuerBank)

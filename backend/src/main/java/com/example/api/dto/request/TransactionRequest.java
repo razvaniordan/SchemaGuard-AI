@@ -32,6 +32,10 @@ public record TransactionRequest(
 
         LocalDateTime clearingDatetime,
 
+        @NotBlank(message = "MCC code is required")
+        @Pattern(regexp = "^[0-9]{4}$", message = "MCC code must be exactly 4 digits")
+        String mccCode,
+        
         @NotNull
         TransactionStatus transactionStatus,
 
@@ -40,4 +44,5 @@ public record TransactionRequest(
 
         @Size(max = 2)
         String eciValue
+
 ) {}
