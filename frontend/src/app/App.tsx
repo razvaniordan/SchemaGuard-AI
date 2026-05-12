@@ -109,10 +109,15 @@ export default function App() {
     string | null
   >(null);
 
-  const currentPage = useMemo(
-    () => navItems.find((item) => item.key === activePage) ?? navItems[0],
-    [activePage],
-  );
+  const currentPage = useMemo<NavItem>(
+  () =>
+    navItems.find((item) => item.key === activePage) ?? {
+      key: 'dashboard',
+      label: 'Dashboard',
+      description: 'Portfolio overview and optimization value.',
+    },
+  [activePage],
+);
 
   const handleNavigate = (page: PageKey) => {
     setActivePage(page);
