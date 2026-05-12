@@ -1,0 +1,16 @@
+node_modules
+frontend/node_modules
+backend/target
+**/__pycache__
+**/.pytest_cache
+.git
+.gitignore
+.vscode
+.idea
+*.pyc
+*.log
+.env
+README.md
+docs/
+*.md
+.DS_Store
