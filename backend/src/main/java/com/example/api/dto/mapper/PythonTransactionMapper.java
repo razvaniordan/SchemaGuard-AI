@@ -40,9 +40,9 @@ public class PythonTransactionMapper {
 
                 mapChannel(tx.getTransactionChannel()),
 
-                tx.getMerchant() == null || tx.getMerchant().getMcc() == null
+                tx.getMccCode() == null
                         ? null
-                        : tx.getMerchant().getMcc().getMccCode(),
+                        : tx.getMccCode().getMccCode(),
 
                 "Y".equalsIgnoreCase(tx.getIs3dsAuthenticated()),
 

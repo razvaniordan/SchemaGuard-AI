@@ -64,7 +64,7 @@ public class RuleEngineService {
                     "Transaction received a higher fee because 3DS authentication was not present."
             );
         }
-        
+
         if (isPos(channel) && "card_present".equals(cardPresence) && clearingDelayDays <= 1) {
             return buildResult(
                     transaction,
@@ -205,10 +205,10 @@ public class RuleEngineService {
     }
 
     private String getMcc(Transaction transaction) {
-        return transaction.getMerchant() != null
-                && transaction.getMerchant().getMcc() != null
-                ? transaction.getMerchant().getMcc().getMccCode()
-                : null;
+        if (transaction == null || transaction.getMccCode() == null) {
+            return null;
+        }
+        return transaction.getMccCode().getMccCode();
     }
 
     private String getRegion(Transaction transaction) {
