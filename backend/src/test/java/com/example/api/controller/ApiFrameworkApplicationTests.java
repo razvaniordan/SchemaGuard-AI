@@ -39,7 +39,7 @@ class ApiFrameworkApplicationTests {
    /* @Test
     void protectedEndpointRequiresAuthentication() throws Exception {
         mockMvc.perform(get("/api/transactions"))
-                .andExpect(status().isForbidden());*/
-    }
+                .andExpect(status().isForbidden());
+    }*/
 
 }
