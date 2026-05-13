@@ -36,6 +36,14 @@ public class MlOptimizationService {
     private final RuleEngineService ruleEngineService;
     private final MlSimulationTransactionMapper mlSimulationTransactionMapper;
 
+
+    private Transaction getExistingTransaction(Long transactionId) {
+        return transactionRepository.findById(transactionId)
+                .orElseThrow(() -> new IllegalArgumentException(
+                        "Transaction not found: " + transactionId
+                ));
+    }
+
     /**
      * Runs the full fee comparison flow:
      *
@@ -53,11 +61,7 @@ public class MlOptimizationService {
         try {
             System.out.println("ML fee comparison started for transactionId=" + transactionId);
 
-            Transaction currentTransaction = transactionRepository.findById(transactionId)
-                    .orElseGet(() -> {
-                        System.out.println("Transaction not found. Using demo transaction for ML test.");
-                        return buildDemoTransaction(transactionId);
-                    });
+            Transaction currentTransaction = getExistingTransaction(transactionId);
 
             RuleEngineResult currentRuleResult =
                     ruleEngineService.evaluate(currentTransaction);
@@ -218,8 +222,7 @@ public class MlOptimizationService {
 
     public String prioritizeRecommendations(Long transactionId) {
 
-        Transaction currentTransaction = transactionRepository.findById(transactionId)
-                .orElseGet(() -> buildDemoTransaction(transactionId));
+        Transaction currentTransaction = getExistingTransaction(transactionId);
 
         RuleEngineResult currentRuleResult =
                 ruleEngineService.evaluate(currentTransaction);
@@ -253,8 +256,7 @@ public class MlOptimizationService {
 
     public String simulateTransaction(Long transactionId) {
 
-        Transaction currentTransaction = transactionRepository.findById(transactionId)
-                .orElseGet(() -> buildDemoTransaction(transactionId));
+        Transaction currentTransaction = getExistingTransaction(transactionId);
 
         RuleEngineResult currentRuleResult =
                 ruleEngineService.evaluate(currentTransaction);
@@ -296,8 +298,7 @@ public class MlOptimizationService {
 
     public String missedConditions(Long transactionId) {
 
-        Transaction currentTransaction = transactionRepository.findById(transactionId)
-                .orElseGet(() -> buildDemoTransaction(transactionId));
+        Transaction currentTransaction = getExistingTransaction(transactionId);
 
         RuleEngineResult currentRuleResult =
                 ruleEngineService.evaluate(currentTransaction);
@@ -320,15 +321,8 @@ public class MlOptimizationService {
                         candidateRuleResult
                 );
 
-        Transaction simulatedTransaction =
-                simulateOptimizedTransaction(
-                        currentTransaction,
-                        currentMlResult,
-                        candidateMlResult
-                );
-
-        RuleEngineResult optimalRuleResult =
-                ruleEngineService.evaluate(simulatedTransaction);
+        Transaction simulatedTransaction = candidateTransaction;
+        RuleEngineResult optimalRuleResult = candidateRuleResult;
 
         try {
             var root = objectMapper.createObjectNode();
