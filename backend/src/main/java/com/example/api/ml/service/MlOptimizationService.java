@@ -330,19 +330,84 @@ public class MlOptimizationService {
         RuleEngineResult optimalRuleResult =
                 ruleEngineService.evaluate(simulatedTransaction);
 
-        MlRuleEngineResult optimalMlResult =
-                mlRuleEngineResultMapper.toMlResult(
-                        simulatedTransaction,
-                        optimalRuleResult
-                );
+        try {
+            var root = objectMapper.createObjectNode();
 
-        MlMissedConditionRequest request =
-                new MlMissedConditionRequest(
-                        currentMlResult,
-                        optimalMlResult
-                );
+            root.put("currentCategory", currentRuleResult.category());
+            root.put("optimalCategory", optimalRuleResult.category());
+            root.put("currentFeeRate", currentRuleResult.feeRate());
+            root.put("optimalFeeRate", optimalRuleResult.feeRate());
 
-        return mlCoreClient.missedConditions(request);
+            var missedConditions = objectMapper.createArrayNode();
+
+            if (!currentRuleResult.category().equals(optimalRuleResult.category())) {
+                var condition = objectMapper.createObjectNode();
+                condition.put("condition", "interchange category");
+                condition.put("currentValue", currentRuleResult.category());
+                condition.put("optimalValue", optimalRuleResult.category());
+                condition.put(
+                        "impact",
+                        Math.max(currentRuleResult.feeRate() - optimalRuleResult.feeRate(), 0)
+                );
+                condition.put("confidence", 0.9);
+                condition.put(
+                        "explanation",
+                        "The simulated transaction qualifies for a different interchange category."
+                );
+                missedConditions.add(condition);
+            }
+
+            if (!currentTransaction.getIs3dsAuthenticated()
+                    .equals(simulatedTransaction.getIs3dsAuthenticated())) {
+                var condition = objectMapper.createObjectNode();
+                condition.put("condition", "3DS authentication");
+                condition.put("currentValue", currentTransaction.getIs3dsAuthenticated());
+                condition.put("optimalValue", simulatedTransaction.getIs3dsAuthenticated());
+                condition.put(
+                        "impact",
+                        Math.max(currentRuleResult.feeRate() - optimalRuleResult.feeRate(), 0) * 0.6
+                );
+                condition.put("confidence", 0.85);
+                condition.put(
+                        "explanation",
+                        "The transaction could benefit from enabling 3DS authentication."
+                );
+                missedConditions.add(condition);
+            }
+
+            if (currentTransaction.getClearingDatetime() != null
+                    && simulatedTransaction.getClearingDatetime() != null
+                    && !currentTransaction.getClearingDatetime()
+                    .equals(simulatedTransaction.getClearingDatetime())) {
+                var condition = objectMapper.createObjectNode();
+                condition.put("condition", "clearing time");
+                condition.put(
+                        "currentValue",
+                        currentTransaction.getClearingDatetime().toString()
+                );
+                condition.put(
+                        "optimalValue",
+                        simulatedTransaction.getClearingDatetime().toString()
+                );
+                condition.put(
+                        "impact",
+                        Math.max(currentRuleResult.feeRate() - optimalRuleResult.feeRate(), 0) * 0.4
+                );
+                condition.put("confidence", 0.8);
+                condition.put(
+                        "explanation",
+                        "The transaction could benefit from faster clearing."
+                );
+                missedConditions.add(condition);
+            }
+
+            root.set("missedConditions", missedConditions);
+
+            return objectMapper.writeValueAsString(root);
+
+        } catch (Exception e) {
+            throw new RuntimeException("Failed to build missed conditions response", e);
+        }
     }
 
     public String detectPortfolioAnomalies() {

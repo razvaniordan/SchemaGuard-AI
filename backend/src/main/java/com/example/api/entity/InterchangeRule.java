@@ -14,33 +14,29 @@ import java.math.BigDecimal;
 @AllArgsConstructor
 @Builder
 @Entity
-@Table(name = "interchange_rules", uniqueConstraints = {
-        @UniqueConstraint(name = "uq_interchange_rules_priority", columnNames = "rule_priority"),
-        @UniqueConstraint(name = "uq_interchange_rules_scope", columnNames = {
-                "card_network_id", "mcc_code", "card_type_id", "transaction_channel",
-                "region_code", "is_3ds_required", "clearing_time_condition"
-        })
-})
+@Table(name = "interchange_rules")
 public class InterchangeRule {
+
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     @Column(name = "rule_id")
     private Long ruleId;
 
-    @NotNull @Min(1)
+    @NotNull
+    @Min(1)
     @Column(name = "rule_priority", nullable = false)
     private Long rulePriority;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "card_network_id", foreignKey = @ForeignKey(name = "fk_interchange_rules_network"))
+    @JoinColumn(name = "card_network_id")
     private CardNetwork cardNetwork;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "mcc_code", foreignKey = @ForeignKey(name = "fk_interchange_rules_mcc"))
+    @JoinColumn(name = "mcc_code")
     private MccCode mcc;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "card_type_id", foreignKey = @ForeignKey(name = "fk_interchange_rules_card_type"))
+    @JoinColumn(name = "card_type_id")
     private CardType cardType;
 
     @Enumerated(EnumType.STRING)
@@ -48,17 +44,12 @@ public class InterchangeRule {
     private Transaction.TransactionChannel transactionChannel;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "region_code", foreignKey = @ForeignKey(name = "fk_interchange_rules_region"))
+    @JoinColumn(name = "region_code")
     private Region region;
 
-    @NotBlank
     @Pattern(regexp = "^[YN]$")
     @JdbcTypeCode(SqlTypes.CHAR)
-    @Column(
-            name = "is_3ds_required",
-            nullable = false,
-            columnDefinition = "CHAR(1)"
-    )
+    @Column(name = "is_3ds_required", columnDefinition = "CHAR(1)")
     private String is3dsRequired;
 
     @Enumerated(EnumType.STRING)
@@ -67,14 +58,16 @@ public class InterchangeRule {
 
     @NotNull
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
-    @JoinColumn(name = "category_id", nullable = false, foreignKey = @ForeignKey(name = "fk_interchange_rules_category"))
+    @JoinColumn(name = "category_id", nullable = false)
     private InterchangeCategory category;
 
-    @NotNull @DecimalMin("0.0000")
+    @NotNull
+    @DecimalMin("0.0000")
     @Column(name = "fee_percentage", precision = 7, scale = 4, nullable = false)
     private BigDecimal feePercentage;
 
-    @NotNull @DecimalMin("0.00")
+    @NotNull
+    @DecimalMin("0.00")
     @Column(name = "fixed_fee_amount", precision = 12, scale = 2, nullable = false)
     @Builder.Default
     private BigDecimal fixedFeeAmount = BigDecimal.ZERO;
@@ -82,13 +75,12 @@ public class InterchangeRule {
     @NotBlank
     @Size(min = 3, max = 3)
     @JdbcTypeCode(SqlTypes.CHAR)
-    @Column(
-            name = "currency_code",
-            nullable = false,
-            columnDefinition = "CHAR(3)"
-    )
+    @Column(name = "currency_code", nullable = false, columnDefinition = "CHAR(3)")
     @Builder.Default
     private String currencyCode = "EUR";
 
-    public enum ClearingTimeCondition { LTE_24H, GT_24H }
+    public enum ClearingTimeCondition {
+        LTE_24H,
+        GT_24H
+    }
 }
