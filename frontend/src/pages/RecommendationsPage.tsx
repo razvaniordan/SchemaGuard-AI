@@ -1,15 +1,19 @@
 import { useEffect, useMemo, useState } from 'react';
-import { mockMlService } from '../mocks/mockMlService.ts';
+import { mlService } from '../services/api/mlService';
 import type { MockRecommendation } from '../mocks/mockRecommendations.ts';
 
-export function RecommendationsPage() {
+type Props = {
+  transactionId: string | null;
+};
+
+export function RecommendationsPage({ transactionId }: Props) {
   const [recommendations, setRecommendations] = useState<
     MockRecommendation[]
   >([]);
 
   useEffect(() => {
-    mockMlService.getRecommendations().then(setRecommendations);
-  }, []);
+    mlService.getRecommendations(transactionId).then(setRecommendations);
+  }, [transactionId]);
 
   const sortedRecommendations = useMemo(() => {
     return [...recommendations].sort((a, b) => b.score - a.score);

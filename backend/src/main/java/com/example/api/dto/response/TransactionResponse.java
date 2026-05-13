@@ -14,12 +14,25 @@ public record TransactionResponse(
 
         Long merchantId,
         String merchantName,
+        String merchantCountryCode,
+        String merchantCountryName,
         String mccCode,
+
 
         Long cardId,
         Long acquiringPartnerId,
+        String acquiringPartnerName,
+        String acquirerCountryCode,
+        String acquirerCountryName,
         Long issuerBankId,
+        String issuerBankName,
+        String issuerCountryCode,
+        String issuerCountryName,
+
+
+
         Long cardNetworkId,
+        String cardNetworkName,
 
         BigDecimal transactionAmount,
         String transactionCurrency,

@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { mockMlService } from '../mocks/mockMlService.ts';
+import { mlService } from '../services/api/mlService';
 import type {
   MissedCondition,
   MockOptimizationReport,
@@ -13,8 +13,8 @@ export function MissedConditionsPage({ transactionId }: Props) {
   const [report, setReport] = useState<MockOptimizationReport | null>(null);
 
   useEffect(() => {
-    mockMlService
-      .getOptimizationReport(transactionId ?? 'TX-1001')
+    mlService
+      .getOptimizationReport(transactionId)
       .then(setReport);
   }, [transactionId]);
 
