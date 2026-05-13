@@ -59,6 +59,8 @@ services:
         condition: service_healthy
       rule-engine-python:
         condition: service_healthy
+      ml-python:
+        condition: service_healthy
 
   etl:
     build:
