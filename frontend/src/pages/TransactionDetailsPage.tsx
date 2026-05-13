@@ -1,34 +1,27 @@
 import { useEffect, useState } from 'react';
-import { mockMlService } from '../mocks/mockMlService.ts';
+import { mlService, type TransactionClassification } from '../services/api/mlService';
 import type { MockTransaction } from '../mocks/mockTransactions.ts';
 
 type Props = {
   transactionId: string | null;
 };
 
-type CurrentClassification = {
-  category: string;
-  feeRate: number;
-  feeAmount: number;
-  appliedRule: string;
-  explanation: string;
-};
 
 export function TransactionDetailsPage({ transactionId }: Props) {
   const [transaction, setTransaction] = useState<MockTransaction | null>(null);
 
   const [classification, setClassification] =
-    useState<CurrentClassification | null>(null);
+    useState<TransactionClassification | null>(null);
 
   useEffect(() => {
     if (!transactionId) return;
 
-    mockMlService.getTransactionById(transactionId).then((result) => {
+    mlService.getTransactionById(transactionId).then((result) => {
       setTransaction(result ?? null);
     });
 
-    mockMlService.getOptimizationReport(transactionId).then((report) => {
-      setClassification(report.currentClassification);
+    mlService.getClassification(transactionId).then((result) => {
+      setClassification(result);
     });
   }, [transactionId]);
 
@@ -216,7 +209,7 @@ export function TransactionDetailsPage({ transactionId }: Props) {
 
             <p className="mt-1 text-lg font-semibold text-brand-primary">
               {classification
-                ? `${(classification.feeRate * 100).toFixed(2)}%`
+                ? `${classification.feeRatePercent.toFixed(2)}%`
                 : 'N/A'}
             </p>
           </div>
@@ -227,16 +220,28 @@ export function TransactionDetailsPage({ transactionId }: Props) {
             label="Fee Amount"
             value={
               classification
-                ? `${classification.feeAmount.toFixed(2)} ${
-                    transaction.currency
-                  }`
+                ? `${classification.feeAmount.toFixed(2)} ${classification.currency}`
                 : 'N/A'
             }
           />
 
           <Field
-            label="Applied Rule"
-            value={classification?.appliedRule ?? 'N/A'}
+            label="Category Code"
+            value={classification?.categoryCode ?? 'N/A'}
+          />
+
+          <Field
+            label="Rule Priority"
+            value={classification?.rulePriority ?? 'N/A'}
+          />
+
+          <Field
+            label="Confidence"
+            value={
+              classification
+                ? `${(classification.confidence * 100).toFixed(0)}%`
+                : 'N/A'
+            }
           />
         </div>
 
@@ -248,6 +253,56 @@ export function TransactionDetailsPage({ transactionId }: Props) {
           <p className="mt-2 text-sm leading-6 text-brand-muted">
             {classification?.explanation ?? 'No explanation available.'}
           </p>
+
+          <p className="mt-4 text-sm font-semibold text-brand-text">
+            Fee Calculation
+          </p>
+
+          <p className="mt-2 text-sm leading-6 text-brand-muted">
+            {classification?.calculationMethod ?? 'N/A'}
+          </p>
+        </div>
+
+        <div className="mt-6">
+          <h3 className="text-sm font-semibold text-brand-text">
+            Condition Results
+          </h3>
+
+          <div className="mt-3 grid gap-3">
+            {classification?.conditionResults.length ? (
+              classification.conditionResults.map((condition) => (
+                <div
+                  key={`${condition.field}-${condition.outcome}`}
+                  className="rounded-xl border border-brand-border p-4"
+                >
+                  <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                    <p className="text-sm font-semibold text-brand-text">
+                      {condition.field}
+                    </p>
+
+                    <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-brand-text">
+                      {condition.outcome}
+                    </span>
+                  </div>
+
+                  <div className="mt-3 grid gap-3 sm:grid-cols-2">
+                    <Field label="Expected" value={condition.expected} />
+                    <Field label="Actual" value={condition.actual} />
+                  </div>
+
+                  {condition.message ? (
+                    <p className="mt-3 text-sm text-brand-muted">
+                      {condition.message}
+                    </p>
+                  ) : null}
+                </div>
+              ))
+            ) : (
+              <p className="text-sm text-brand-muted">
+                No condition details available.
+              </p>
+            )}
+          </div>
         </div>
       </section>
     </div>

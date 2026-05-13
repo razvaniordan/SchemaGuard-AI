@@ -53,6 +53,14 @@ public class TransactionService {
                 .toList();
     }
 
+    @Transactional(readOnly = true)
+    public TransactionResponse findById(Long id) {
+        Transaction transaction = transactionRepository.findById(id)
+                .orElseThrow(() -> new IllegalArgumentException("Transaction not found: " + id));
+
+        return toResponse(transaction);
+    }
+
     @Transactional
     public TransactionResponse create(TransactionRequest request) {
         Client client = clientRepository.findById(request.clientId())
@@ -114,17 +122,24 @@ public class TransactionService {
 
                 transaction.getMerchant().getMerchantId(),
                 transaction.getMerchant().getMerchantName(),
+                transaction.getMerchant().getCountry().getCountryCode(),
+                transaction.getMerchant().getCountry().getCountryName(),
                 transaction.getMccCode().getMccCode(),
 
                 transaction.getCard().getCardId(),
                 transaction.getAcquiringPartner().getAcquiringPartnerId(),
+                transaction.getAcquiringPartner().getPartnerName(),
+                transaction.getAcquiringPartner().getCountry().getCountryCode(),
+                transaction.getAcquiringPartner().getCountry().getCountryName(),
                 transaction.getIssuerBank().getBankId(),
+                transaction.getIssuerBank().getBankName(),
+                transaction.getIssuerBank().getCountry().getCountryCode(),
+                transaction.getIssuerBank().getCountry().getCountryName(),
                 transaction.getCardNetwork().getCardNetworkId(),
-
+                transaction.getCardNetwork().getNetworkName(),
                 transaction.getTransactionAmount(),
                 transaction.getTransactionCurrency(),
                 transaction.getTransactionChannel(),
-
                 transaction.getAuthorizationDatetime(),
                 transaction.getClearingDatetime(),
 

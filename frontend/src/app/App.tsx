@@ -218,7 +218,7 @@ export default function App() {
         ) : activePage === 'savings-projections' ? (
           <SavingsProjectionPage transactionId={selectedTransactionId} />
         ) : activePage === 'recommendations' ? (
-          <RecommendationsPage />
+          <RecommendationsPage transactionId={selectedTransactionId} />
         ) : activePage === 'missed-conditions' ? (
           <MissedConditionsPage transactionId={selectedTransactionId} />
         ) : (

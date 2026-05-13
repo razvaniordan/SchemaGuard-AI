@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { mockMlService } from '../mocks/mockMlService.ts';
+import { mlService } from '../services/api/mlService';
 import type {
   MockTransaction,
   TransactionChannel,
@@ -18,7 +18,7 @@ export function TransactionsPage({ onSelectTransaction }: Props) {
   const [statusFilter, setStatusFilter] = useState<'ALL' | TransactionStatus>('ALL');
 
   useEffect(() => {
-    mockMlService.getTransactions().then(setTransactions);
+    mlService.getTransactions().then(setTransactions);
   }, []);
 
   const filteredTransactions = useMemo(() => {
