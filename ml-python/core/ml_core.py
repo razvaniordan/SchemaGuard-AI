@@ -18,7 +18,6 @@ from core.model_registry import ModelRegistry, ModelMetadata
 from core.ml_anomaly_detection_model import MLAnomalyDetectionModel
 from core.impact_prediction_model import ImpactPredictionModel
 from core.root_cause_driver_model import RootCauseDriverModel
-from core.transaction_schema import build_ml_feature_row
 from core.transaction_schema import build_ml_feature_row, normalize_transaction, get_payment_channel
 from models.analysis_models import (
     MLCoreResponse,
@@ -375,22 +374,88 @@ class MLCore:
                 ml_results = model.detect_batch(rows)
 
                 if ml_results:
-                    # Backward compatibility:
-                    # Convert ML results into the existing response shape only if
-                    # your AnomalyDetectionResponse supports anomalies as dicts.
-                    return AnomalyDetectionResponse(
-                        anomalies=[
+                    rows_by_transaction_id = {
+                        str(row.get("transactionId")): row
+                        for row in rows
+                    }
+
+                    def calculate_expected_fee(row):
+                        if row is None:
+                            return None
+
+                        current_transaction_id = str(row.get("transactionId"))
+                        current_fee_amount = row.get("feeAmount")
+
+                        similar_rows = [
+                            candidate
+                            for candidate in rows
+                            if str(candidate.get("transactionId")) != current_transaction_id
+                               and candidate.get("category") == row.get("category")
+                               and candidate.get("channel") == row.get("channel")
+                               and candidate.get("mcc") == row.get("mcc")
+                               and candidate.get("threeDS") == row.get("threeDS")
+                               and candidate.get("feeAmount") is not None
+                        ]
+
+                        if not similar_rows:
+                            similar_rows = [
+                                candidate
+                                for candidate in rows
+                                if str(candidate.get("transactionId")) != current_transaction_id
+                                   and candidate.get("category") == row.get("category")
+                                   and candidate.get("channel") == row.get("channel")
+                                   and candidate.get("feeAmount") is not None
+                            ]
+
+                        if not similar_rows:
+                            similar_rows = [
+                                candidate
+                                for candidate in rows
+                                if str(candidate.get("transactionId")) != current_transaction_id
+                                   and candidate.get("category") == row.get("category")
+                                   and candidate.get("feeAmount") is not None
+                            ]
+
+                        if not similar_rows:
+                            return current_fee_amount
+
+                        return round(
+                            sum(float(candidate.get("feeAmount")) for candidate in similar_rows)
+                            / len(similar_rows),
+                            2,
+                        )
+
+                    anomalies = []
+
+                    for item in ml_results:
+                        row = rows_by_transaction_id.get(str(item.transactionId))
+
+                        actual_fee = row.get("feeAmount") if row else None
+                        expected_fee = calculate_expected_fee(row)
+
+                        fee_deviation = None
+                        if actual_fee is not None and expected_fee is not None:
+                            fee_deviation = round(float(actual_fee) - float(expected_fee), 2)
+
+                        anomalies.append(
                             TransactionAnomaly(
                                 transactionId=item.transactionId,
                                 anomalyType=item.anomalyType,
-                                expectedFee=None,
-                                actualFee=None,
-                                deviation=item.anomalyScore,
+                                expectedFee=expected_fee,
+                                actualFee=actual_fee,
+                                deviation=fee_deviation,
                                 severity=item.severity,
-                                explanation=item.explanation,
+                                explanation=(
+                                    f"Actual fee differs from the expected fee for similar transactions "
+                                    f"by {fee_deviation} EUR."
+                                    if fee_deviation is not None
+                                    else item.explanation
+                                ),
                             )
-                            for item in ml_results
-                        ],
+                        )
+
+                    return AnomalyDetectionResponse(
+                        anomalies=anomalies,
                         warnings=[],
                     )
         # Fallback to existing rule-based anomaly detector.
