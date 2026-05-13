@@ -11,7 +11,7 @@ public class MlCoreConfig {
     public RestClient mlCoreRestClient(RestClient.Builder builder) {
 
         return builder
-                .baseUrl("http://host.docker.internal:8001")
+                .baseUrl("http://ml-python:8001")
                 .build();
     }
 }
