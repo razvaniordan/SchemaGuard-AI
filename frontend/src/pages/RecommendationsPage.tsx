@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { mlService } from '../services/api/mlService';
-import type { MockRecommendation } from '../mocks/mockRecommendations.ts';
+import type { RecommendationDto } from '../services/api/types';
 
 type Props = {
   transactionId: string | null;
@@ -8,7 +8,7 @@ type Props = {
 
 export function RecommendationsPage({ transactionId }: Props) {
   const [recommendations, setRecommendations] = useState<
-    MockRecommendation[]
+    RecommendationDto[]
   >([]);
 
   useEffect(() => {
@@ -33,8 +33,7 @@ export function RecommendationsPage({ transactionId }: Props) {
             </h1>
 
             <p className="mt-3 max-w-3xl text-sm leading-6 text-brand-muted">
-              Ranked optimization recommendations generated from mock ML
-              scoring logic.
+              Ranked optimization recommendations generated from backend ML scoring.
             </p>
           </div>
 
@@ -59,7 +58,7 @@ export function RecommendationsPage({ transactionId }: Props) {
 function RecommendationCard({
   recommendation,
 }: {
-  recommendation: MockRecommendation;
+  recommendation: RecommendationDto;
 }) {
   return (
     <article className="rounded-2xl border border-brand-border bg-white p-6 shadow-sm">

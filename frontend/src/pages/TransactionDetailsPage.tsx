@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { mlService, type TransactionClassification } from '../services/api/mlService';
-import type { MockTransaction } from '../mocks/mockTransactions.ts';
+import type { TransactionDto } from '../services/api/types';
 
 type Props = {
   transactionId: string | null;
@@ -8,7 +8,7 @@ type Props = {
 
 
 export function TransactionDetailsPage({ transactionId }: Props) {
-  const [transaction, setTransaction] = useState<MockTransaction | null>(null);
+  const [transaction, setTransaction] = useState<TransactionDto | null>(null);
 
   const [classification, setClassification] =
     useState<TransactionClassification | null>(null);

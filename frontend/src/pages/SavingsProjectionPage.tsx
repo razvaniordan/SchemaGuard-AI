@@ -1,13 +1,13 @@
 import { useEffect, useState } from 'react';
 import { mlService } from '../services/api/mlService';
-import type { MockOptimizationReport } from '../mocks/mockOptimizationReport.ts';
+import type { OptimizationReportDto } from '../services/api/types';
 
 type Props = {
   transactionId: string | null;
 };
 
 export function SavingsProjectionPage({ transactionId }: Props) {
-  const [report, setReport] = useState<MockOptimizationReport | null>(null);
+  const [report, setReport] = useState<OptimizationReportDto | null>(null);
 
   useEffect(() => {
     mlService
@@ -38,8 +38,7 @@ export function SavingsProjectionPage({ transactionId }: Props) {
         </h1>
 
         <p className="mt-3 max-w-3xl text-sm leading-6 text-brand-muted">
-          Shows estimated savings based on mock optimization data. This is a
-          frontend-only projection and does not call the backend.
+          Shows estimated savings based on the backend optimization report for the selected transaction.
         </p>
       </section>
 
