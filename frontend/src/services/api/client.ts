@@ -1,3 +1,5 @@
+import { getAuthToken } from './authStorage';
+
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? '';
 
 type ApiClientOptions = RequestInit & {
@@ -8,10 +10,13 @@ export async function apiClient<TResponse>(
   path: string,
   options: ApiClientOptions = {},
 ): Promise<TResponse> {
+  const token = getAuthToken();
+
   const response = await fetch(`${API_BASE_URL}${path}`, {
     ...options,
     headers: {
       'Content-Type': 'application/json',
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
       ...options.headers,
     },
   });

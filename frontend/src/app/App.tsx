@@ -5,6 +5,12 @@ import { OptimizationReportPage } from '../pages/OptimizationReportPage';
 import { SavingsProjectionPage } from '../pages/SavingsProjectionPage';
 import { RecommendationsPage } from '../pages/RecommendationsPage';
 import { MissedConditionsPage } from '../pages/MissedConditionsPage';
+import { LoginPage } from '../pages/LoginPage';
+import {
+  clearAuthToken,
+  getAuthToken,
+  saveAuthToken,
+} from '../services/api/authStorage';
 
 type PageKey =
   | 'dashboard'
@@ -103,6 +109,7 @@ function PlaceholderPage({
 }
 
 export default function App() {
+  const [authToken, setAuthToken] = useState<string | null>(() => getAuthToken());
   const [activePage, setActivePage] = useState<PageKey>('dashboard');
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [selectedTransactionId, setSelectedTransactionId] = useState<
@@ -110,19 +117,37 @@ export default function App() {
   >(null);
 
   const currentPage = useMemo<NavItem>(
-  () =>
-    navItems.find((item) => item.key === activePage) ?? {
-      key: 'dashboard',
-      label: 'Dashboard',
-      description: 'Portfolio overview and optimization value.',
-    },
-  [activePage],
-);
+    () =>
+      navItems.find((item) => item.key === activePage) ?? {
+        key: 'dashboard',
+        label: 'Dashboard',
+        description: 'Portfolio overview and optimization value.',
+      },
+    [activePage],
+  );
+
+  const handleLogin = (token: string) => {
+    saveAuthToken(token);
+    setAuthToken(token);
+    setActivePage('dashboard');
+  };
+
+  const handleLogout = () => {
+    clearAuthToken();
+    setAuthToken(null);
+    setActivePage('dashboard');
+    setSelectedTransactionId(null);
+    setIsMobileMenuOpen(false);
+  };
 
   const handleNavigate = (page: PageKey) => {
     setActivePage(page);
     setIsMobileMenuOpen(false);
   };
+
+  if (!authToken) {
+    return <LoginPage onLogin={handleLogin} />;
+  }
 
   return (
     <div className="min-h-screen bg-slate-50 text-brand-text">
@@ -137,13 +162,23 @@ export default function App() {
             </p>
           </div>
 
-          <button
-            type="button"
-            onClick={() => setIsMobileMenuOpen((value) => !value)}
-            className="rounded-lg border border-brand-border px-3 py-2 text-sm font-medium text-brand-text"
-          >
-            Menu
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={handleLogout}
+              className="rounded-lg border border-brand-border px-3 py-2 text-sm font-medium text-brand-muted"
+            >
+              Logout
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setIsMobileMenuOpen((value) => !value)}
+              className="rounded-lg border border-brand-border px-3 py-2 text-sm font-medium text-brand-text"
+            >
+              Menu
+            </button>
+          </div>
         </div>
 
         {isMobileMenuOpen && (
@@ -194,39 +229,49 @@ export default function App() {
                     : 'text-brand-muted hover:bg-slate-100 hover:text-brand-text'
                 }`}
               >
-                <span className="block text-sm font-semibold">{item.label}</span>
+                <span className="block text-sm font-semibold">
+                  {item.label}
+                </span>
                 <span className="mt-1 block text-xs leading-5">
                   {item.description}
                 </span>
               </button>
             ))}
           </nav>
+
+          <button
+            type="button"
+            onClick={handleLogout}
+            className="mt-8 w-full rounded-xl border border-brand-border px-4 py-3 text-left text-sm font-semibold text-brand-muted transition hover:bg-slate-100 hover:text-brand-text"
+          >
+            Logout
+          </button>
         </aside>
 
         <main className="p-4 sm:p-6 lg:p-8">
-        {activePage === 'transactions' ? (
-          <TransactionsPage
-            onSelectTransaction={(transactionId) => {
-              setSelectedTransactionId(transactionId);
-              setActivePage('transaction-details');
-            }}
-          />
-        ) : activePage === 'transaction-details' ? (
-          <TransactionDetailsPage transactionId={selectedTransactionId} />
-        ) : activePage === 'optimization-report' ? (
-          <OptimizationReportPage transactionId={selectedTransactionId} />
-        ) : activePage === 'savings-projections' ? (
-          <SavingsProjectionPage transactionId={selectedTransactionId} />
-        ) : activePage === 'recommendations' ? (
-          <RecommendationsPage transactionId={selectedTransactionId} />
-        ) : activePage === 'missed-conditions' ? (
-          <MissedConditionsPage transactionId={selectedTransactionId} />
-        ) : (
-          <PlaceholderPage
-            title={currentPage.label}
-            description={currentPage.description}
-          />
-        )}
+          {activePage === 'transactions' ? (
+            <TransactionsPage
+              onSelectTransaction={(transactionId) => {
+                setSelectedTransactionId(transactionId);
+                setActivePage('transaction-details');
+              }}
+            />
+          ) : activePage === 'transaction-details' ? (
+            <TransactionDetailsPage transactionId={selectedTransactionId} />
+          ) : activePage === 'optimization-report' ? (
+            <OptimizationReportPage transactionId={selectedTransactionId} />
+          ) : activePage === 'savings-projections' ? (
+            <SavingsProjectionPage transactionId={selectedTransactionId} />
+          ) : activePage === 'recommendations' ? (
+            <RecommendationsPage transactionId={selectedTransactionId} />
+          ) : activePage === 'missed-conditions' ? (
+            <MissedConditionsPage transactionId={selectedTransactionId} />
+          ) : (
+            <PlaceholderPage
+              title={currentPage.label}
+              description={currentPage.description}
+            />
+          )}
         </main>
       </div>
     </div>
