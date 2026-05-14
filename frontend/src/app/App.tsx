@@ -5,6 +5,7 @@ import { OptimizationReportPage } from '../pages/OptimizationReportPage';
 import { SavingsProjectionPage } from '../pages/SavingsProjectionPage';
 import { RecommendationsPage } from '../pages/RecommendationsPage';
 import { MissedConditionsPage } from '../pages/MissedConditionsPage';
+import { AnomaliesPage } from '../pages/AnomaliesPage';
 import { LoginPage } from '../pages/LoginPage';
 import {
   clearAuthToken,
@@ -38,7 +39,7 @@ const navItems: NavItem[] = [
   {
     key: 'transactions',
     label: 'Transactions',
-    description: 'Mock transaction list with filters.',
+    description: 'Transaction list with filters.',
   },
   {
     key: 'transaction-details',
@@ -72,8 +73,8 @@ const navItems: NavItem[] = [
   },
   {
     key: 'settings',
-    label: 'Settings / Mock Data',
-    description: 'Frontend-only configuration and mock data preview.',
+    label: 'Settings',
+    description: 'Application configuration.',
   },
 ];
 
@@ -213,7 +214,7 @@ export default function App() {
               Fee Optimization
             </h2>
             <p className="mt-1 text-sm text-brand-muted">
-              Frontend MVP with mock navigation.
+              Frontend MVP with backend navigation.
             </p>
           </div>
 
@@ -266,6 +267,8 @@ export default function App() {
             <RecommendationsPage transactionId={selectedTransactionId} />
           ) : activePage === 'missed-conditions' ? (
             <MissedConditionsPage transactionId={selectedTransactionId} />
+          )  : activePage === 'anomalies' ? (
+            <AnomaliesPage />
           ) : (
             <PlaceholderPage
               title={currentPage.label}
