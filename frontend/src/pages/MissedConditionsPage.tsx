@@ -1,27 +1,90 @@
 import { useEffect, useState } from 'react';
 import { mlService } from '../services/api/mlService';
-import type { OptimizationReportDto } from '../services/api/types';
+
 import type { MissedConditionDto } from '../services/api/types';
 
 type Props = {
   transactionId: string | null;
 };
+type ConditionsState = {
+  transactionId: string;
+  conditions: MissedConditionDto[];
+  error: string | null;
+};
 
 export function MissedConditionsPage({ transactionId }: Props) {
-  const [report, setReport] = useState<OptimizationReportDto | null>(null);
 
+  const [conditionsState, setConditionsState] =
+  useState<ConditionsState | null>(null);
   useEffect(() => {
+    let isMounted = true;
+
+    if (!transactionId) {
+      return () => {
+        isMounted = false;
+      };
+    }
+
     mlService
-      .getOptimizationReport(transactionId)
-      .then(setReport);
+      .getMissedConditions(transactionId)
+      .then((result) => {
+        if (isMounted) {
+          setConditionsState({
+            transactionId,
+            conditions: result,
+            error: null,
+          });
+        }
+      })
+      .catch((err: unknown) => {
+        if (isMounted) {
+          setConditionsState({
+            transactionId,
+            conditions: [],
+            error:
+              err instanceof Error
+                ? err.message
+                : 'Failed to load missed conditions',
+          });
+        }
+      });
+
+    return () => {
+      isMounted = false;
+    };
   }, [transactionId]);
 
-  if (!report) {
+  const conditions =
+    !transactionId
+      ? []
+      : conditionsState?.transactionId === transactionId
+        ? conditionsState.conditions
+        : null;
+
+  const error =
+    transactionId && conditionsState?.transactionId === transactionId
+      ? conditionsState.error
+      : null;
+
+  if (error) {
+    return (
+      <section className="rounded-2xl border border-red-200 bg-white p-6 shadow-sm">
+        <h1 className="text-2xl font-semibold text-brand-text">
+          Missed Conditions
+        </h1>
+
+        <p className="mt-3 text-sm text-red-600">{error}</p>
+      </section>
+    );
+  }
+
+  if (!conditions) {
     return (
       <section className="rounded-2xl border border-brand-border bg-white p-6 shadow-sm">
         <h1 className="text-2xl font-semibold text-brand-text">
           Missed Conditions
         </h1>
+
         <p className="mt-3 text-sm text-brand-muted">Loading conditions...</p>
       </section>
     );
@@ -47,16 +110,28 @@ export function MissedConditionsPage({ transactionId }: Props) {
           </div>
 
           <div className="rounded-xl bg-orange-50 px-4 py-3 text-sm font-semibold text-orange-700">
-            {report.missedConditions.length} missed conditions
+            {conditions.length} missed conditions
           </div>
         </div>
       </section>
 
-      <section className="grid gap-5">
-        {report.missedConditions.map((condition) => (
-          <ConditionCard key={condition.id} condition={condition} />
-        ))}
-      </section>
+      {conditions.length === 0 ? (
+        <section className="rounded-2xl border border-brand-border bg-white p-6 text-center shadow-sm">
+          <h2 className="text-lg font-semibold text-brand-text">
+            No missed conditions found
+          </h2>
+
+          <p className="mt-2 text-sm leading-6 text-brand-muted">
+            This transaction does not have missed optimization conditions.
+          </p>
+        </section>
+      ) : (
+        <section className="grid gap-5">
+          {conditions.map((condition) => (
+            <ConditionCard key={condition.id} condition={condition} />
+          ))}
+        </section>
+      )}
     </div>
   );
 }

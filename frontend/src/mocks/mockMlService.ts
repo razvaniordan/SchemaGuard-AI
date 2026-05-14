@@ -35,6 +35,10 @@ export const mockMlService = {
     return [...mockRecommendations].sort((a, b) => b.score - a.score);
   },
 
+  async getMissedConditions() {
+    return mockOptimizationReport.missedConditions;
+  },
+
   async getAnomalies() {
     return mockAnomalies;
   },

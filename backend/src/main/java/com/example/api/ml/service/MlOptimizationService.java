@@ -1,15 +1,14 @@
 package com.example.api.ml.service;
 
-import com.example.api.entity.Transaction;
-import com.example.api.entity.MccCode;
-import com.example.api.entity.Client;
-import com.example.api.entity.Merchant;
-import com.example.api.entity.Card;
 import com.example.api.entity.AcquiringPartner;
 import com.example.api.entity.Bank;
+import com.example.api.entity.Card;
 import com.example.api.entity.CardNetwork;
-import com.example.api.entity.Region;
+import com.example.api.entity.Client;
 import com.example.api.entity.MccCode;
+import com.example.api.entity.Merchant;
+import com.example.api.entity.Region;
+import com.example.api.entity.Transaction;
 import com.example.api.ml.client.MlCoreClient;
 import com.example.api.ml.cache.PortfolioAnomalyCacheService;
 import com.example.api.ml.dto.*;
@@ -17,13 +16,16 @@ import com.example.api.ml.mapper.MlRuleEngineResultMapper;
 import com.example.api.ml.mapper.MlSimulationTransactionMapper;
 import com.example.api.ml.mapper.MlTransactionMapper;
 import com.example.api.repository.TransactionRepository;
-import com.example.api.ruleengine.service.RuleEngineService;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.JsonNode;
 import com.example.api.ruleengine.model.RuleEngineResult;
-import java.util.List;
+import com.example.api.ruleengine.service.RuleEngineService;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+import java.util.List;
+import java.util.Objects;
 
 @Service
 @RequiredArgsConstructor
@@ -37,7 +39,6 @@ public class MlOptimizationService {
     private final RuleEngineService ruleEngineService;
     private final MlSimulationTransactionMapper mlSimulationTransactionMapper;
         private final PortfolioAnomalyCacheService portfolioAnomalyCacheService;
-
 
     private Transaction getExistingTransaction(Long transactionId) {
         return transactionRepository.findById(transactionId)
@@ -160,7 +161,6 @@ public class MlOptimizationService {
     }
 
     private Transaction buildDemoTransaction(Long transactionId) {
-
         Transaction tx = new Transaction();
 
         Client client = new Client();
@@ -223,7 +223,6 @@ public class MlOptimizationService {
     }
 
     public String prioritizeRecommendations(Long transactionId) {
-
         Transaction currentTransaction = getExistingTransaction(transactionId);
 
         RuleEngineResult currentRuleResult =
@@ -257,7 +256,6 @@ public class MlOptimizationService {
     }
 
     public String simulateTransaction(Long transactionId) {
-
         Transaction currentTransaction = getExistingTransaction(transactionId);
 
         RuleEngineResult currentRuleResult =
@@ -298,8 +296,8 @@ public class MlOptimizationService {
         }
     }
 
+    @Transactional(readOnly = true)
     public String missedConditions(Long transactionId) {
-
         Transaction currentTransaction = getExistingTransaction(transactionId);
 
         RuleEngineResult currentRuleResult =
@@ -336,46 +334,64 @@ public class MlOptimizationService {
 
             var missedConditions = objectMapper.createArrayNode();
 
-            if (!currentRuleResult.category().equals(optimalRuleResult.category())) {
+            if (!Objects.equals(
+                    currentRuleResult.category(),
+                    optimalRuleResult.category()
+            )) {
                 var condition = objectMapper.createObjectNode();
+
                 condition.put("condition", "interchange category");
                 condition.put("currentValue", currentRuleResult.category());
                 condition.put("optimalValue", optimalRuleResult.category());
                 condition.put(
                         "impact",
-                        Math.max(currentRuleResult.feeRate() - optimalRuleResult.feeRate(), 0)
+                        Math.max(
+                                currentRuleResult.feeRate() - optimalRuleResult.feeRate(),
+                                0
+                        )
                 );
                 condition.put("confidence", 0.9);
                 condition.put(
                         "explanation",
                         "The simulated transaction qualifies for a different interchange category."
                 );
+
                 missedConditions.add(condition);
             }
 
-            if (!currentTransaction.getIs3dsAuthenticated()
-                    .equals(simulatedTransaction.getIs3dsAuthenticated())) {
+            if (!Objects.equals(
+                    currentTransaction.getIs3dsAuthenticated(),
+                    simulatedTransaction.getIs3dsAuthenticated()
+            )) {
                 var condition = objectMapper.createObjectNode();
+
                 condition.put("condition", "3DS authentication");
                 condition.put("currentValue", currentTransaction.getIs3dsAuthenticated());
                 condition.put("optimalValue", simulatedTransaction.getIs3dsAuthenticated());
                 condition.put(
                         "impact",
-                        Math.max(currentRuleResult.feeRate() - optimalRuleResult.feeRate(), 0) * 0.6
+                        Math.max(
+                                currentRuleResult.feeRate() - optimalRuleResult.feeRate(),
+                                0
+                        ) * 0.6
                 );
                 condition.put("confidence", 0.85);
                 condition.put(
                         "explanation",
                         "The transaction could benefit from enabling 3DS authentication."
                 );
+
                 missedConditions.add(condition);
             }
 
             if (currentTransaction.getClearingDatetime() != null
                     && simulatedTransaction.getClearingDatetime() != null
-                    && !currentTransaction.getClearingDatetime()
-                    .equals(simulatedTransaction.getClearingDatetime())) {
+                    && !Objects.equals(
+                    currentTransaction.getClearingDatetime(),
+                    simulatedTransaction.getClearingDatetime()
+            )) {
                 var condition = objectMapper.createObjectNode();
+
                 condition.put("condition", "clearing time");
                 condition.put(
                         "currentValue",
@@ -387,13 +403,17 @@ public class MlOptimizationService {
                 );
                 condition.put(
                         "impact",
-                        Math.max(currentRuleResult.feeRate() - optimalRuleResult.feeRate(), 0) * 0.4
+                        Math.max(
+                                currentRuleResult.feeRate() - optimalRuleResult.feeRate(),
+                                0
+                        ) * 0.4
                 );
                 condition.put("confidence", 0.8);
                 condition.put(
                         "explanation",
                         "The transaction could benefit from faster clearing."
                 );
+
                 missedConditions.add(condition);
             }
 
@@ -407,11 +427,26 @@ public class MlOptimizationService {
     }
 
     public String detectPortfolioAnomalies() {
-                try {
-                        return objectMapper.writeValueAsString(portfolioAnomalyCacheService.getSnapshot());
-                } catch (Exception e) {
-                        throw new RuntimeException("Failed to serialize cached portfolio anomalies", e);
-                }
+          
+        List<Transaction> transactions = transactionRepository.findAll();
+
+        if (transactions.isEmpty()) {
+            transactions = List.of(buildDemoTransaction(1L));
+        }
+
+        List<MlRuleEngineResult> results = transactions.stream()
+                .map(transaction -> {
+                    RuleEngineResult ruleResult =
+                            ruleEngineService.evaluate(transaction);
+
+                    return mlRuleEngineResultMapper.toMlResult(
+                            transaction,
+                            ruleResult
+                    );
+                })
+                .toList();
+
+        return mlCoreClient.detectAnomalies(results);
     }
 
     public MlOptimizationReportResponse optimizationReport(
@@ -436,11 +471,26 @@ public class MlOptimizationService {
             JsonNode anomalyInsights = portfolioAnomalyCacheService.getSnapshot();
 
             JsonNode savingsProjections = objectMapper.createObjectNode()
-                    .put("monthlyProjectedSavings", feeComparison.path("monthlyProjectedSavings").asDouble())
-                    .put("yearlyProjectedSavings", feeComparison.path("yearlyProjectedSavings").asDouble())
-                    .put("currency", feeComparison.path("currency").asText())
-                    .put("mlPredictedSavings", feeComparison.path("mlPredictedSavings").asDouble())
-                    .put("mlConfidence", feeComparison.path("mlConfidence").asDouble());
+                    .put(
+                            "monthlyProjectedSavings",
+                            feeComparison.path("monthlyProjectedSavings").asDouble()
+                    )
+                    .put(
+                            "yearlyProjectedSavings",
+                            feeComparison.path("yearlyProjectedSavings").asDouble()
+                    )
+                    .put(
+                            "currency",
+                            feeComparison.path("currency").asText()
+                    )
+                    .put(
+                            "mlPredictedSavings",
+                            feeComparison.path("mlPredictedSavings").asDouble()
+                    )
+                    .put(
+                            "mlConfidence",
+                            feeComparison.path("mlConfidence").asDouble()
+                    );
 
             String summary = buildOptimizationSummary(
                     feeComparison,
