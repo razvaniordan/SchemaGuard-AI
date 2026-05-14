@@ -101,6 +101,10 @@ services:
       - "8001:8001"
     environment:
       APP_ENV: local
+      AUTO_TRAIN: "true"
+    volumes:
+      - ./ml-python/data:/app/data
+      - ./ml-python/models/artifacts:/app/models/artifacts
     healthcheck:
       test:
         [
@@ -112,7 +116,7 @@ services:
       interval: 10s
       timeout: 5s
       retries: 10
-      start_period: 10s
+      start_period: 60s
 
 volumes:
   postgres_data:
