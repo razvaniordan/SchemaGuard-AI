@@ -1,10 +1,10 @@
 import type {
-  MockOptimizationReport,
-  MissedCondition,
-} from '../../mocks/mockOptimizationReport';
-import type { MockRecommendation } from '../../mocks/mockRecommendations';
-import type { MockAnomaly } from '../../mocks/mockAnomalies';
-import type { MockTransaction } from '../../mocks/mockTransactions';
+  AnomalyDto,
+  MissedConditionDto,
+  OptimizationReportDto,
+  RecommendationDto,
+  TransactionDto,
+} from './types';
 import { apiClient } from './client';
 
 type BackendTransaction = {
@@ -118,7 +118,7 @@ type BackendOptimizationReport = {
   summary?: string;
   feeComparison?: Record<string, unknown>;
   savingsProjections?: Record<string, unknown>;
-  missedConditions?: Record<string, unknown> | unknown[];
+  missedConditionDtos?: Record<string, unknown> | unknown[];
   rankedRecommendations?: Record<string, unknown> | unknown[];
   anomalyInsights?: Record<string, unknown> | unknown[];
 };
@@ -203,7 +203,7 @@ function daysBetween(start?: string | null, end?: string | null): number | undef
   );
 }
 
-function mapTransaction(transaction: BackendTransaction): MockTransaction {
+function mapTransaction(transaction: BackendTransaction): TransactionDto {
   return {
     transactionId: String(transaction.transactionId),
     amount: asNumber(transaction.transactionAmount),
@@ -239,7 +239,7 @@ function mapTransaction(transaction: BackendTransaction): MockTransaction {
   };
 }
 
-function mapRecommendation(value: unknown, index: number): MockRecommendation {
+function mapRecommendation(value: unknown, index: number): RecommendationDto {
   const recommendation = asRecord(value);
   const score = firstNumber(recommendation, ['score', 'mlScore', 'priorityScore', 'confidence'], 0.5);
   const priority = asString(recommendation.priority, score >= 0.8 ? 'HIGH' : score >= 0.5 ? 'MEDIUM' : 'LOW');
@@ -260,7 +260,7 @@ function mapRecommendation(value: unknown, index: number): MockRecommendation {
   };
 }
 
-function mapMissedCondition(value: unknown, index: number): MissedCondition {
+function mapMissedConditionDto(value: unknown, index: number): MissedConditionDto {
   const condition = asRecord(value);
 
   return {
@@ -274,7 +274,7 @@ function mapMissedCondition(value: unknown, index: number): MissedCondition {
   };
 }
 
-function mapAnomaly(value: unknown, index: number): MockAnomaly {
+function mapAnomaly(value: unknown, index: number): AnomalyDto {
   const anomaly = asRecord(value);
   const severity = asString(anomaly.severity, 'MEDIUM');
 
@@ -326,7 +326,7 @@ function mapClassification(response: BackendClassificationResponse): Transaction
   };
 }
 
-function mapReport(report: BackendOptimizationReport): MockOptimizationReport {
+function mapReport(report: BackendOptimizationReport): OptimizationReportDto {
   const feeComparison = asRecord(report.feeComparison);
   const savingsProjections = asRecord(report.savingsProjections);
 
@@ -340,7 +340,7 @@ function mapReport(report: BackendOptimizationReport): MockOptimizationReport {
   const savingsAmount = firstNumber(feeComparison, ['absoluteSavings', 'savingsAmount'], Math.max(0, currentFeeAmount - optimizedFeeAmount));
   const percentageSavings = firstNumber(feeComparison, ['percentageSavings', 'savingsPercentage'], currentFeeAmount ? (savingsAmount / currentFeeAmount) * 100 : 0);
 
-  const missedConditions = listFrom(report.missedConditions, ['missedConditions', 'conditions']).map(mapMissedCondition);
+  const missedConditionDtos = listFrom(report.missedConditionDtos, ['missedConditionDtos', 'conditions']).map(mapMissedConditionDto);
   const recommendations = listFrom(report.rankedRecommendations, ['recommendations', 'rankedRecommendations']).map(mapRecommendation);
 
   return {
@@ -371,23 +371,23 @@ function mapReport(report: BackendOptimizationReport): MockOptimizationReport {
       modelVersion: asString(feeComparison.modelVersion, 'backend-ml-service'),
       fallbackUsed: Boolean(feeComparison.fallbackUsed),
     },
-    missedConditions,
+      missedConditions: missedConditionDtos,
     recommendations,
   };
 }
 
 export const mlService = {
-  async getTransactions(): Promise<MockTransaction[]> {
+  async getTransactions(): Promise<TransactionDto[]> {
     const transactions = await apiClient<BackendTransaction[]>('/transactions');
     return transactions.map(mapTransaction);
   },
 
-  async getTransactionById(transactionId: string | null): Promise<MockTransaction | undefined> {
+  async getTransactionById(transactionId: string | null): Promise<TransactionDto | undefined> {
     const transaction = await apiClient<BackendTransaction>(`/transactions/${backendId(transactionId)}`);
     return mapTransaction(transaction);
   },
 
-  async getOptimizationReport(transactionId: string | null): Promise<MockOptimizationReport> {
+  async getOptimizationReport(transactionId: string | null): Promise<OptimizationReportDto> {
     const report = await apiClient<BackendOptimizationReport>(
       `/ml/transactions/${backendId(transactionId)}/optimization-report`,
     );
@@ -404,14 +404,14 @@ export const mlService = {
     return mapClassification(response);
   },
 
-  async getRecommendations(transactionId: string | null): Promise<MockRecommendation[]> {
+  async getRecommendations(transactionId: string | null): Promise<RecommendationDto[]> {
     const root = await apiClient<unknown>(`/ml/transactions/${backendId(transactionId)}/recommendations`);
     return listFrom(root, ['recommendations', 'rankedRecommendations'])
       .map(mapRecommendation)
       .sort((a, b) => b.score - a.score);
   },
 
-  async getAnomalies(): Promise<MockAnomaly[]> {
+  async getAnomalies(): Promise<AnomalyDto[]> {
     const root = await apiClient<unknown>('/ml/transactions/portfolio/anomalies');
     return listFrom(root, ['anomalies', 'anomalyInsights']).map(mapAnomaly);
   },

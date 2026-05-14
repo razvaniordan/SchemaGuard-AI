@@ -1,16 +1,14 @@
 import { useEffect, useState } from 'react';
 import { mlService } from '../services/api/mlService';
-import type {
-  MissedCondition,
-  MockOptimizationReport,
-} from '../mocks/mockOptimizationReport.ts';
+import type { OptimizationReportDto } from '../services/api/types';
+import type { MissedConditionDto } from '../services/api/types';
 
 type Props = {
   transactionId: string | null;
 };
 
 export function MissedConditionsPage({ transactionId }: Props) {
-  const [report, setReport] = useState<MockOptimizationReport | null>(null);
+  const [report, setReport] = useState<OptimizationReportDto | null>(null);
 
   useEffect(() => {
     mlService
@@ -63,7 +61,7 @@ export function MissedConditionsPage({ transactionId }: Props) {
   );
 }
 
-function ConditionCard({ condition }: { condition: MissedCondition }) {
+function ConditionCard({ condition }: { condition: MissedConditionDto }) {
   return (
     <article className="rounded-2xl border border-brand-border bg-white p-6 shadow-sm">
       <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">

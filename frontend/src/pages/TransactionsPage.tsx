@@ -1,17 +1,17 @@
 import { useEffect, useMemo, useState } from 'react';
 import { mlService } from '../services/api/mlService';
 import type {
-  MockTransaction,
   TransactionChannel,
+  TransactionDto,
   TransactionStatus,
-} from '../mocks/mockTransactions.ts';
+} from '../services/api/types';
 
 type Props = {
   onSelectTransaction: (transactionId: string) => void;
 };
 
 export function TransactionsPage({ onSelectTransaction }: Props) {
-  const [transactions, setTransactions] = useState<MockTransaction[]>([]);
+  const [transactions, setTransactions] = useState<TransactionDto[]>([]);
   const [search, setSearch] = useState('');
   const [channelFilter, setChannelFilter] = useState<'ALL' | TransactionChannel>('ALL');
   const [threeDsFilter, setThreeDsFilter] = useState<'ALL' | 'YES' | 'NO'>('ALL');
@@ -56,7 +56,7 @@ export function TransactionsPage({ onSelectTransaction }: Props) {
             Transactions List
           </h1>
           <p className="mt-2 text-sm text-brand-muted">
-            Listă mock de tranzacții cu search și filtre basic.
+            Listă de tranzacții încărcate din backend, cu search și filtre basic.
           </p>
         </div>
 

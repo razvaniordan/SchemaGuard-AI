@@ -1,13 +1,13 @@
 import { useEffect, useState } from 'react';
 import { mlService } from '../services/api/mlService';
-import type { MockOptimizationReport } from '../mocks/mockOptimizationReport.ts';
+import type { OptimizationReportDto } from '../services/api/types';
 
 type Props = {
   transactionId: string | null;
 };
 
 export function OptimizationReportPage({ transactionId }: Props) {
-  const [report, setReport] = useState<MockOptimizationReport | null>(null);
+  const [report, setReport] = useState<OptimizationReportDto | null>(null);
 
   useEffect(() => {
     mlService
@@ -44,8 +44,7 @@ export function OptimizationReportPage({ transactionId }: Props) {
             </h1>
 
             <p className="mt-3 max-w-3xl text-sm leading-6 text-brand-muted">
-              Mock end-to-end report showing current fee, optimized fee,
-              projected savings and ML status.
+              End-to-end report showing current fee, optimized fee, projected savings and ML status based on backend data.
             </p>
           </div>
 
