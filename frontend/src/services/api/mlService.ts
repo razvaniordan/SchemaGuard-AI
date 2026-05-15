@@ -127,7 +127,7 @@ type BackendOptimizationReport = {
   summary?: string;
   feeComparison?: Record<string, unknown>;
   savingsProjections?: Record<string, unknown>;
-  missedConditionDtos?: Record<string, unknown> | unknown[];
+  missedConditions?: Record<string, unknown> | unknown[];
   rankedRecommendations?: Record<string, unknown> | unknown[];
   anomalyInsights?: Record<string, unknown> | unknown[];
 };
@@ -250,8 +250,16 @@ function mapTransaction(transaction: BackendTransaction): TransactionDto {
 
 function mapRecommendation(value: unknown, index: number): RecommendationDto {
   const recommendation = asRecord(value);
-  const score = firstNumber(recommendation, ['score', 'mlScore', 'priorityScore', 'confidence'], 0.5);
-  const priority = asString(recommendation.priority, score >= 0.8 ? 'HIGH' : score >= 0.5 ? 'MEDIUM' : 'LOW');
+  const rawScore = firstNumber(
+    recommendation,
+    ['score', 'mlScore', 'priorityScore', 'confidence'],
+    0.5,
+  );
+  const score = rawScore > 1 ? rawScore / 100 : rawScore;
+  const priority = asString(
+    recommendation.priority,
+    score >= 0.8 ? 'HIGH' : score >= 0.5 ? 'MEDIUM' : 'LOW',
+  );
   const difficulty = asString(recommendation.difficulty, 'MEDIUM');
 
   return {
@@ -349,20 +357,31 @@ function mapReport(report: BackendOptimizationReport): OptimizationReportDto {
   const savingsAmount = firstNumber(feeComparison, ['absoluteSavings', 'savingsAmount'], Math.max(0, currentFeeAmount - optimizedFeeAmount));
   const percentageSavings = firstNumber(feeComparison, ['percentageSavings', 'savingsPercentage'], currentFeeAmount ? (savingsAmount / currentFeeAmount) * 100 : 0);
 
-  const missedConditionDtos = listFrom(report.missedConditionDtos, ['missedConditionDtos', 'conditions']).map(mapMissedConditionDto);
+  const missedConditionDtos = listFrom(
+    report.missedConditions,
+    ['missedConditions', 'conditions'],
+  ).map(mapMissedConditionDto);
   const recommendations = listFrom(report.rankedRecommendations, ['recommendations', 'rankedRecommendations']).map(mapRecommendation);
 
   return {
     transactionId: String(report.transactionId),
     currentClassification: {
-      category: firstString(current, ['category', 'classification'], firstString(feeComparison, ['currentCategory'], 'Current classification')),
+      category: firstString(
+        current,
+        ['category', 'classification'],
+        firstString(feeComparison, ['currentCategory'], 'N/A'),
+      ),
       feeRate: currentFeeRate,
       feeAmount: currentFeeAmount,
       appliedRule: firstString(current, ['appliedRule', 'ruleCode'], firstString(feeComparison, ['currentAppliedRule'], 'N/A')),
       explanation: firstString(current, ['explanation'], report.summary ?? 'Current transaction classification.'),
     },
     optimizedClassification: {
-      category: firstString(optimized, ['category', 'classification'], firstString(feeComparison, ['optimizedCategory', 'optimalCategory'], 'Optimized classification')),
+      category: firstString(
+        optimized,
+        ['category', 'classification'],
+        firstString(feeComparison, ['optimizedCategory', 'optimalCategory'], 'N/A'),
+      ),
       feeRate: optimizedFeeRate,
       feeAmount: optimizedFeeAmount,
       appliedRule: firstString(optimized, ['appliedRule', 'ruleCode'], firstString(feeComparison, ['optimizedAppliedRule', 'optimalAppliedRule'], 'N/A')),
