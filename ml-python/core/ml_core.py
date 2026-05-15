@@ -346,10 +346,20 @@ class MLCore:
         """
         Detect abnormal transactions.
 
-        Phase 2 behavior:
-        - Try ML anomaly detection when enabled and model exists.
-        - Fall back to the existing rule-based detector if ML is unavailable.
+        Improved behavior:
+        - Always runs rule-based business anomaly detection.
+        - Also runs ML anomaly detection when enabled and available.
+        - Combines both outputs so ML does not hide business rules.
+        - Filters zero-impact ML fee deviations.
+        - Deduplicates by transactionId + anomalyType.
+        - Sorts by business priority.
         """
+
+        detector = AnomalyDetector()
+        rule_response = detector.detect(results)
+
+        combined_anomalies = list(rule_response.anomalies)
+        combined_warnings = list(rule_response.warnings)
 
         model_config = self.config.get("models", {}).get("anomaly_detection", {})
 
@@ -391,7 +401,7 @@ class MLCore:
                             for candidate in rows
                             if str(candidate.get("transactionId")) != current_transaction_id
                                and candidate.get("category") == row.get("category")
-                               and candidate.get("channel") == row.get("channel")
+                               and candidate.get("paymentChannel") == row.get("paymentChannel")
                                and candidate.get("mcc") == row.get("mcc")
                                and candidate.get("threeDS") == row.get("threeDS")
                                and candidate.get("feeAmount") is not None
@@ -403,7 +413,7 @@ class MLCore:
                                 for candidate in rows
                                 if str(candidate.get("transactionId")) != current_transaction_id
                                    and candidate.get("category") == row.get("category")
-                                   and candidate.get("channel") == row.get("channel")
+                                   and candidate.get("paymentChannel") == row.get("paymentChannel")
                                    and candidate.get("feeAmount") is not None
                             ]
 
@@ -425,8 +435,6 @@ class MLCore:
                             2,
                         )
 
-                    anomalies = []
-
                     for item in ml_results:
                         row = rows_by_transaction_id.get(str(item.transactionId))
 
@@ -437,30 +445,112 @@ class MLCore:
                         if actual_fee is not None and expected_fee is not None:
                             fee_deviation = round(float(actual_fee) - float(expected_fee), 2)
 
-                        anomalies.append(
+                        if fee_deviation is not None and abs(fee_deviation) < 0.01:
+                            continue
+
+                        anomaly_type = "FEE_DEVIATION" if fee_deviation is not None else item.anomalyType
+                        severity = self._severity_from_fee_deviation(fee_deviation) if fee_deviation is not None else item.severity
+
+                        combined_anomalies.append(
                             TransactionAnomaly(
-                                transactionId=item.transactionId,
-                                anomalyType=item.anomalyType,
+                                transactionId=str(item.transactionId),
+                                anomalyType=anomaly_type,
                                 expectedFee=expected_fee,
                                 actualFee=actual_fee,
                                 deviation=fee_deviation,
-                                severity=item.severity,
+                                severity=severity,
                                 explanation=(
-                                    f"Actual fee differs from the expected fee for similar transactions "
-                                    f"by {fee_deviation} EUR."
+                                    f"Actual fee is {abs(fee_deviation)} EUR "
+                                    f"{'above' if fee_deviation > 0 else 'below'} the expected benchmark fee."
                                     if fee_deviation is not None
                                     else item.explanation
                                 ),
                             )
                         )
 
-                    return AnomalyDetectionResponse(
-                        anomalies=anomalies,
-                        warnings=[],
-                    )
-        # Fallback to existing rule-based anomaly detector.
-        detector = AnomalyDetector()
-        return detector.detect(results)
+                        combined_warnings.extend(getattr(item, "warnings", []) or [])
+
+        final_anomalies = self._sort_anomalies(
+            self._deduplicate_anomalies(combined_anomalies)
+        )
+
+        return AnomalyDetectionResponse(
+            anomalies=final_anomalies,
+            warnings=combined_warnings,
+        )
+
+    def _severity_from_fee_deviation(self, deviation: float | None) -> str:
+        if deviation is None:
+            return "MEDIUM"
+
+        absolute_deviation = abs(float(deviation))
+
+        if absolute_deviation >= 50:
+            return "HIGH"
+
+        if absolute_deviation >= 5:
+            return "MEDIUM"
+
+        return "LOW"
+
+    def _deduplicate_anomalies(
+            self,
+            anomalies: List[TransactionAnomaly],
+    ) -> List[TransactionAnomaly]:
+        severity_rank = {
+            "LOW": 1,
+            "MEDIUM": 2,
+            "HIGH": 3,
+        }
+
+        deduplicated = {}
+
+        for anomaly in anomalies:
+            key = (
+                str(anomaly.transactionId),
+                anomaly.anomalyType,
+            )
+
+            existing = deduplicated.get(key)
+
+            if existing is None:
+                deduplicated[key] = anomaly
+                continue
+
+            existing_rank = severity_rank.get(existing.severity, 0)
+            current_rank = severity_rank.get(anomaly.severity, 0)
+
+            if current_rank > existing_rank:
+                deduplicated[key] = anomaly
+                continue
+
+            if current_rank == existing_rank:
+                existing_deviation = abs(existing.deviation or 0)
+                current_deviation = abs(anomaly.deviation or 0)
+
+                if current_deviation > existing_deviation:
+                    deduplicated[key] = anomaly
+
+        return list(deduplicated.values())
+
+    def _sort_anomalies(
+            self,
+            anomalies: List[TransactionAnomaly],
+    ) -> List[TransactionAnomaly]:
+        severity_rank = {
+            "HIGH": 3,
+            "MEDIUM": 2,
+            "LOW": 1,
+        }
+
+        return sorted(
+            anomalies,
+            key=lambda anomaly: (
+                severity_rank.get(anomaly.severity, 0),
+                abs(anomaly.deviation or 0),
+            ),
+            reverse=True,
+        )
 
     def simulate_bulk_scenarios(
             self,
