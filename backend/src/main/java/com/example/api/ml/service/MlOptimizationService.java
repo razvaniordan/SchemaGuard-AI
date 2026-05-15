@@ -323,8 +323,15 @@ public class MlOptimizationService {
                         candidateRuleResult
                 );
 
-        Transaction simulatedTransaction = candidateTransaction;
-        RuleEngineResult optimalRuleResult = candidateRuleResult;
+        Transaction simulatedTransaction =
+                simulateOptimizedTransaction(
+                        currentTransaction,
+                        currentMlResult,
+                        candidateMlResult
+                );
+
+        RuleEngineResult optimalRuleResult =
+                ruleEngineService.evaluate(simulatedTransaction);
 
         try {
             var root = objectMapper.createObjectNode();
@@ -336,64 +343,93 @@ public class MlOptimizationService {
 
             var missedConditions = objectMapper.createArrayNode();
 
-            if (!currentRuleResult.category().equals(optimalRuleResult.category())) {
+            double feeRateImpact = Math.max(
+                    currentRuleResult.feeRate() - optimalRuleResult.feeRate(),
+                    0
+            );
+
+            boolean categoryChanged =
+                    currentRuleResult.category() != null
+                            && optimalRuleResult.category() != null
+                            && !currentRuleResult.category().equals(optimalRuleResult.category());
+
+            if (categoryChanged) {
                 var condition = objectMapper.createObjectNode();
-                condition.put("condition", "interchange category");
+
+                condition.put("condition", "Interchange category");
                 condition.put("currentValue", currentRuleResult.category());
                 condition.put("optimalValue", optimalRuleResult.category());
-                condition.put(
-                        "impact",
-                        Math.max(currentRuleResult.feeRate() - optimalRuleResult.feeRate(), 0)
-                );
+                condition.put("impact", feeRateImpact);
                 condition.put("confidence", 0.9);
                 condition.put(
                         "explanation",
-                        "The simulated transaction qualifies for a different interchange category."
+                        "The optimized transaction qualifies for a better interchange category."
                 );
+
                 missedConditions.add(condition);
             }
 
-            if (!currentTransaction.getIs3dsAuthenticated()
-                    .equals(simulatedTransaction.getIs3dsAuthenticated())) {
+            boolean isEcommerce =
+                    currentTransaction.getTransactionChannel() != null
+                            && "ECOMMERCE".equalsIgnoreCase(
+                            currentTransaction.getTransactionChannel().toString()
+                    );
+
+            boolean currentHas3ds =
+                    currentTransaction.getIs3dsAuthenticated() != null
+                            && "Y".equalsIgnoreCase(currentTransaction.getIs3dsAuthenticated());
+
+            boolean optimizedHas3ds =
+                    simulatedTransaction.getIs3dsAuthenticated() != null
+                            && "Y".equalsIgnoreCase(simulatedTransaction.getIs3dsAuthenticated());
+
+            if (isEcommerce && !currentHas3ds && optimizedHas3ds) {
                 var condition = objectMapper.createObjectNode();
-                condition.put("condition", "3DS authentication");
-                condition.put("currentValue", currentTransaction.getIs3dsAuthenticated());
-                condition.put("optimalValue", simulatedTransaction.getIs3dsAuthenticated());
-                condition.put(
-                        "impact",
-                        Math.max(currentRuleResult.feeRate() - optimalRuleResult.feeRate(), 0) * 0.6
-                );
+
+                condition.put("condition", "3DS Authentication");
+                condition.put("currentValue", "Not authenticated");
+                condition.put("optimalValue", "3DS authenticated");
+                condition.put("impact", Math.max(feeRateImpact * 0.6, 0));
                 condition.put("confidence", 0.85);
                 condition.put(
                         "explanation",
-                        "The transaction could benefit from enabling 3DS authentication."
+                        "E-commerce transaction is missing 3DS authentication and may qualify for worse interchange fees."
                 );
+
                 missedConditions.add(condition);
             }
 
-            if (currentTransaction.getClearingDatetime() != null
-                    && simulatedTransaction.getClearingDatetime() != null
-                    && !currentTransaction.getClearingDatetime()
-                    .equals(simulatedTransaction.getClearingDatetime())) {
+            Integer clearingDelayDays = null;
+
+            if (currentTransaction.getAuthorizationDatetime() != null
+                    && currentTransaction.getClearingDatetime() != null) {
+                clearingDelayDays = (int) java.time.Duration.between(
+                        currentTransaction.getAuthorizationDatetime(),
+                        currentTransaction.getClearingDatetime()
+                ).toDays();
+            }
+
+            boolean clearingImproved =
+                    currentTransaction.getClearingDatetime() != null
+                            && simulatedTransaction.getClearingDatetime() != null
+                            && !currentTransaction.getClearingDatetime()
+                            .equals(simulatedTransaction.getClearingDatetime());
+
+            if (clearingDelayDays != null
+                    && clearingDelayDays >= 2
+                    && clearingImproved) {
                 var condition = objectMapper.createObjectNode();
-                condition.put("condition", "clearing time");
-                condition.put(
-                        "currentValue",
-                        currentTransaction.getClearingDatetime().toString()
-                );
-                condition.put(
-                        "optimalValue",
-                        simulatedTransaction.getClearingDatetime().toString()
-                );
-                condition.put(
-                        "impact",
-                        Math.max(currentRuleResult.feeRate() - optimalRuleResult.feeRate(), 0) * 0.4
-                );
+
+                condition.put("condition", "Timely Clearing");
+                condition.put("currentValue", clearingDelayDays + " days");
+                condition.put("optimalValue", "Same day or next day clearing");
+                condition.put("impact", Math.max(feeRateImpact * 0.4, 0));
                 condition.put("confidence", 0.8);
                 condition.put(
                         "explanation",
-                        "The transaction could benefit from faster clearing."
+                        "Delayed clearing may prevent optimal fee qualification."
                 );
+
                 missedConditions.add(condition);
             }
 
