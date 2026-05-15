@@ -6,6 +6,7 @@ import { SavingsProjectionPage } from '../pages/SavingsProjectionPage';
 import { RecommendationsPage } from '../pages/RecommendationsPage';
 import { MissedConditionsPage } from '../pages/MissedConditionsPage';
 import { LoginPage } from '../pages/LoginPage';
+import { DashboardPage } from '../pages/DashboardPage';
 import {
   clearAuthToken,
   getAuthToken,
@@ -249,7 +250,9 @@ export default function App() {
         </aside>
 
         <main className="p-4 sm:p-6 lg:p-8">
-          {activePage === 'transactions' ? (
+          {activePage === 'dashboard' ? (
+            <DashboardPage />
+          ) : activePage === 'transactions' ? (
             <TransactionsPage
               onSelectTransaction={(transactionId) => {
                 setSelectedTransactionId(transactionId);
