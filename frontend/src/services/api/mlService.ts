@@ -3,6 +3,7 @@ import type {
   MissedConditionDto,
   OptimizationReportDto,
   RecommendationDto,
+  TransactionPageDto,
   TransactionDto,
 } from './types';
 import { apiClient } from './client';
@@ -36,6 +37,14 @@ type BackendTransaction = {
   is3dsAuthenticated?: 'Y' | 'N' | string | null;
   eciValue?: string | null;
   regionCode?: string;
+};
+
+type BackendTransactionPage = {
+  rows: BackendTransaction[];
+  total: number;
+  page: number;
+  pageSize: number;
+  totalPages: number;
 };
 
 
@@ -377,9 +386,15 @@ function mapReport(report: BackendOptimizationReport): OptimizationReportDto {
 }
 
 export const mlService = {
-  async getTransactions(): Promise<TransactionDto[]> {
-    const transactions = await apiClient<BackendTransaction[]>('/transactions');
-    return transactions.map(mapTransaction);
+  async getTransactions(page = 1, pageSize = 10): Promise<TransactionPageDto> {
+    const response = await apiClient<BackendTransactionPage>(
+      `/transactions?page=${page}&pageSize=${pageSize}`,
+    );
+
+    return {
+      ...response,
+      rows: response.rows.map(mapTransaction),
+    };
   },
 
   async getTransactionById(transactionId: string | null): Promise<TransactionDto | undefined> {
@@ -417,11 +432,11 @@ export const mlService = {
   },
 
   async getPortfolioSummary() {
-    const transactions = await this.getTransactions();
+    const transactions = await this.getTransactions(1, 1);
     const anomalies = await this.getAnomalies();
 
     return {
-      totalTransactions: transactions.length,
+      totalTransactions: transactions.total,
       totalCurrentFees: 0,
       totalOptimizedFees: 0,
       totalEstimatedSavings: 0,

@@ -23,6 +23,14 @@ export type TransactionDto = {
   status: TransactionStatus;
 };
 
+export type TransactionPageDto = {
+  rows: TransactionDto[];
+  total: number;
+  page: number;
+  pageSize: number;
+  totalPages: number;
+};
+
 export type RecommendationPriority = 'HIGH' | 'MEDIUM' | 'LOW';
 export type RecommendationDifficulty = 'EASY' | 'MEDIUM' | 'HARD';
 

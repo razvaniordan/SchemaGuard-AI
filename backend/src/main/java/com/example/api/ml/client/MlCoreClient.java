@@ -63,8 +63,7 @@ public class MlCoreClient {
             String jsonBody = objectMapper.writeValueAsString(request);
 
             System.out.println("Calling Python ML endpoint: " + endpointName);
-            System.out.println("Sending ML JSON:");
-            System.out.println(jsonBody);
+            System.out.println("Sending ML JSON payload with " + jsonBody.length() + " characters");
 
             return mlCoreRestClient.post()
                     .uri(uri)

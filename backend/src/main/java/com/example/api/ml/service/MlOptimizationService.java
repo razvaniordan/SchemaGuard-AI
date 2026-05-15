@@ -11,6 +11,7 @@ import com.example.api.entity.CardNetwork;
 import com.example.api.entity.Region;
 import com.example.api.entity.MccCode;
 import com.example.api.ml.client.MlCoreClient;
+import com.example.api.ml.cache.PortfolioAnomalyCacheService;
 import com.example.api.ml.dto.*;
 import com.example.api.ml.mapper.MlRuleEngineResultMapper;
 import com.example.api.ml.mapper.MlSimulationTransactionMapper;
@@ -35,6 +36,7 @@ public class MlOptimizationService {
     private final ObjectMapper objectMapper;
     private final RuleEngineService ruleEngineService;
     private final MlSimulationTransactionMapper mlSimulationTransactionMapper;
+        private final PortfolioAnomalyCacheService portfolioAnomalyCacheService;
 
 
     private Transaction getExistingTransaction(Long transactionId) {
@@ -405,26 +407,11 @@ public class MlOptimizationService {
     }
 
     public String detectPortfolioAnomalies() {
-
-        List<Transaction> transactions = transactionRepository.findAll();
-
-        if (transactions.isEmpty()) {
-            transactions = List.of(buildDemoTransaction(1L));
-        }
-
-        List<MlRuleEngineResult> results = transactions.stream()
-                .map(transaction -> {
-                    RuleEngineResult ruleResult =
-                            ruleEngineService.evaluate(transaction);
-
-                    return mlRuleEngineResultMapper.toMlResult(
-                            transaction,
-                            ruleResult
-                    );
-                })
-                .toList();
-
-        return mlCoreClient.detectAnomalies(results);
+                try {
+                        return objectMapper.writeValueAsString(portfolioAnomalyCacheService.getSnapshot());
+                } catch (Exception e) {
+                        throw new RuntimeException("Failed to serialize cached portfolio anomalies", e);
+                }
     }
 
     public MlOptimizationReportResponse optimizationReport(
@@ -443,12 +430,10 @@ public class MlOptimizationService {
 
             String recommendationsJson = prioritizeRecommendations(transactionId);
 
-            String anomaliesJson = detectPortfolioAnomalies();
-
             JsonNode feeComparison = objectMapper.readTree(feeComparisonJson);
             JsonNode missedConditions = objectMapper.readTree(missedConditionsJson);
             JsonNode rankedRecommendations = objectMapper.readTree(recommendationsJson);
-            JsonNode anomalyInsights = objectMapper.readTree(anomaliesJson);
+            JsonNode anomalyInsights = portfolioAnomalyCacheService.getSnapshot();
 
             JsonNode savingsProjections = objectMapper.createObjectNode()
                     .put("monthlyProjectedSavings", feeComparison.path("monthlyProjectedSavings").asDouble())

@@ -2,8 +2,8 @@ import { useEffect, useMemo, useState } from 'react';
 import { mlService } from '../services/api/mlService';
 import type {
   TransactionChannel,
-  TransactionDto,
   TransactionStatus,
+  TransactionPageDto,
 } from '../services/api/types';
 
 type Props = {
@@ -11,18 +11,36 @@ type Props = {
 };
 
 export function TransactionsPage({ onSelectTransaction }: Props) {
-  const [transactions, setTransactions] = useState<TransactionDto[]>([]);
+  const [transactionPage, setTransactionPage] = useState<TransactionPageDto | null>(null);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [isLoading, setIsLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [channelFilter, setChannelFilter] = useState<'ALL' | TransactionChannel>('ALL');
   const [threeDsFilter, setThreeDsFilter] = useState<'ALL' | 'YES' | 'NO'>('ALL');
   const [statusFilter, setStatusFilter] = useState<'ALL' | TransactionStatus>('ALL');
 
   useEffect(() => {
-    mlService.getTransactions().then(setTransactions);
-  }, []);
+    let isActive = true;
+    setIsLoading(true);
+
+    mlService.getTransactions(currentPage, 10).then((response) => {
+      if (isActive) {
+        setTransactionPage(response);
+        setIsLoading(false);
+      }
+    });
+
+    return () => {
+      isActive = false;
+    };
+  }, [currentPage]);
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [search, channelFilter, threeDsFilter, statusFilter]);
 
   const filteredTransactions = useMemo(() => {
-    return transactions.filter((transaction) => {
+    return (transactionPage?.rows ?? []).filter((transaction) => {
       const searchValue = search.toLowerCase();
 
       const matchesSearch =
@@ -43,7 +61,12 @@ export function TransactionsPage({ onSelectTransaction }: Props) {
 
       return matchesSearch && matchesChannel && matchesThreeDs && matchesStatus;
     });
-  }, [transactions, search, channelFilter, threeDsFilter, statusFilter]);
+  }, [transactionPage, search, channelFilter, threeDsFilter, statusFilter]);
+
+  const totalTransactions = transactionPage?.total ?? 0;
+  const totalPages = transactionPage?.totalPages ?? 1;
+  const canGoPrevious = currentPage > 1 && !isLoading;
+  const canGoNext = currentPage < totalPages && !isLoading;
 
   return (
     <section className="rounded-2xl border border-brand-border bg-white p-6 shadow-sm">
@@ -61,7 +84,7 @@ export function TransactionsPage({ onSelectTransaction }: Props) {
         </div>
 
         <div className="rounded-xl bg-blue-50 px-4 py-3 text-sm font-semibold text-brand-primary">
-          {filteredTransactions.length} rezultate
+          {totalTransactions} total, pagina {currentPage} din {totalPages}
         </div>
       </div>
 
@@ -130,6 +153,14 @@ export function TransactionsPage({ onSelectTransaction }: Props) {
           </thead>
 
           <tbody>
+            {isLoading && (
+              <tr>
+                <td colSpan={10} className="px-4 py-10 text-center text-brand-muted">
+                  Loading transactions...
+                </td>
+              </tr>
+            )}
+
             {filteredTransactions.map((transaction) => (
               <tr
                 key={transaction.transactionId}
@@ -168,14 +199,42 @@ export function TransactionsPage({ onSelectTransaction }: Props) {
             ))}
 
             {filteredTransactions.length === 0 && (
+              !isLoading && (
               <tr>
                 <td colSpan={10} className="px-4 py-10 text-center text-brand-muted">
                   Nu există tranzacții pentru filtrele selectate.
                 </td>
               </tr>
+              )
             )}
           </tbody>
         </table>
+      </div>
+
+      <div className="mt-5 flex items-center justify-between gap-3">
+        <p className="text-sm text-brand-muted">
+          Showing {filteredTransactions.length} transaction(s) on the current page.
+        </p>
+
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={() => setCurrentPage((value) => Math.max(1, value - 1))}
+            disabled={!canGoPrevious}
+            className="rounded-lg border border-brand-border px-4 py-2 text-sm font-medium text-brand-text transition disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            Previous
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setCurrentPage((value) => Math.min(totalPages, value + 1))}
+            disabled={!canGoNext}
+            className="rounded-lg border border-brand-border px-4 py-2 text-sm font-medium text-brand-text transition disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            Next
+          </button>
+        </div>
       </div>
     </section>
   );
