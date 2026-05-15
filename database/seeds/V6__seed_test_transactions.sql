@@ -40,41 +40,62 @@ INSERT INTO mcc_codes (mcc_code, mcc_description) VALUES
 ON CONFLICT (mcc_code) DO NOTHING;
 
 -- 2) Create deterministic load-test clients (idempotent by name)
+WITH client_pool AS (
+  SELECT
+    gs,
+    'LoadTest Client ' ||
+    (ARRAY['Oliver','Liam','Noah','William','James','Henry','Lucas','Mason','Ethan','Alexander','Michael','Daniel','Jacob','Logan','Matthew','Owen'])[((gs-1) % array_length(ARRAY['Oliver','Liam','Noah','William','James','Henry','Lucas','Mason','Ethan','Alexander','Michael','Daniel','Jacob','Logan','Matthew','Owen'], 1)) + 1]
+      || ' ' ||
+    (ARRAY['Popescu','Ionescu','Georgescu','Popa','Stan','Mivovanu','Lupului','Macanache','Anghel','Lupoae','Pascan','Gorganeanu','Mutu','Stirbu','Anghelescu','Ronaldo','Badea'])[(((gs-1) / array_length(ARRAY['Popescu','Ionescu','Georgescu','Popa','Stan','Mivovanu','Lupului','Macanache','Anghel','Lupoae','Pascan','Gorganeanu','Mutu','Stirbu','Anghelescu','Ronaldo','Badea'], 1)) % array_length(ARRAY['Popescu','Ionescu','Georgescu','Popa','Stan'], 1)) + 1] AS client_name,
+    (ARRAY['RO','RO','RO','NL','DE','FR','ES','IT'])[(gs % 8) + 1] AS country_code
+  FROM generate_series(1, 80) AS gs
+)
 INSERT INTO clients (client_name, country_code)
-SELECT
-  'LoadTest Client ' || LPAD(gs::text, 3, '0'),
-  (ARRAY['RO','RO','RO','NL','DE','FR','ES','IT'])[(gs % 8) + 1]
-FROM generate_series(1, 80) AS gs
+SELECT client_name, country_code
+FROM client_pool cp
 WHERE NOT EXISTS (
-  SELECT 1
-  FROM clients c
-  WHERE c.client_name = 'LoadTest Client ' || LPAD(gs::text, 3, '0')
+  SELECT 1 FROM clients c WHERE c.client_name = cp.client_name
 );
 
 -- 3) Create deterministic load-test merchants (idempotent by merchant_name + address check)
 --    (no unique constraint exists on merchants table, so we protect manually)
+WITH merchant_pool AS (
+  SELECT
+    gs,
+    'LoadTest Merchant ' ||
+    (ARRAY[
+      'Bucharest Market','Cluj Grocers','EuroFresh','CityFresh','Green Basket','DailyMart',
+      'ElectroMart','TechHub','GadgetWorld','DeviceHouse','Electronica','CircuitShop',
+      'Bazaar Misc','CornerShop','GeneralStore','VarietyPlus','MarketplaceX','AllGoods',
+      'Hotel Grand','StayCentral','CityLodge','UrbanInn','Comfort Suites','RegalHotel',
+      'MetroTransit','CityTaxi','CommuterLines','RideExpress','LocalTransit','TramWorks'
+    ])[((gs - 1) % array_length(ARRAY[
+      'Bucharest Market','Cluj Grocers','EuroFresh','CityFresh','Green Basket','DailyMart',
+      'ElectroMart','TechHub','GadgetWorld','DeviceHouse','Electronica','CircuitShop',
+      'Bazaar Misc','CornerShop','GeneralStore','VarietyPlus','MarketplaceX','AllGoods',
+      'Hotel Grand','StayCentral','CityLodge','UrbanInn','Comfort Suites','RegalHotel',
+      'MetroTransit','CityTaxi','CommuterLines','RideExpress','LocalTransit','TramWorks'
+    ], 1)) + 1] AS merchant_name,
+    (ARRAY['5411','5732','5999','7011','4111'])[((gs - 1) % array_length(ARRAY['5411','5732','5999','7011','4111'], 1)) + 1] AS mcc_code,
+    (ARRAY['RO','RO','NL','DE','FR'])[((gs - 1) % array_length(ARRAY['RO','RO','NL','DE','FR'], 1)) + 1] AS country_code,
+    (ARRAY['Bucharest','Cluj','Amsterdam','Berlin','Paris'])[((gs - 1) % array_length(ARRAY['Bucharest','Cluj','Amsterdam','Berlin','Paris'], 1)) + 1] AS city,
+    'Seed St ' || gs AS address,
+    ap.acquiring_partner_id
+  FROM generate_series(1, 30) gs
+  JOIN LATERAL (
+    SELECT acquiring_partner_id
+    FROM acquiring_partners
+    ORDER BY acquiring_partner_id
+    LIMIT 1 OFFSET (gs % (SELECT COUNT(*) FROM acquiring_partners))
+  ) ap ON TRUE
+)
 INSERT INTO merchants (
   merchant_name, mcc_code, country_code, city, address, acquiring_partner_id
 )
-SELECT
-  'LoadTest Merchant ' || LPAD(gs::text, 3, '0'),
-  (ARRAY['5411','5732','5999','7011','4111'])[(gs % 5) + 1],
-  (ARRAY['RO','RO','NL','DE','FR'])[(gs % 5) + 1],
-  (ARRAY['Bucharest','Cluj','Amsterdam','Berlin','Paris'])[(gs % 5) + 1],
-  'LoadTest Street ' || gs,
-  ap.acquiring_partner_id
-FROM generate_series(1, 30) gs
-JOIN LATERAL (
-  SELECT acquiring_partner_id
-  FROM acquiring_partners
-  ORDER BY acquiring_partner_id
-  LIMIT 1 OFFSET (gs % (SELECT COUNT(*) FROM acquiring_partners))
-) ap ON TRUE
+SELECT merchant_name, mcc_code, country_code, city, address, acquiring_partner_id
+FROM merchant_pool mp
 WHERE NOT EXISTS (
-  SELECT 1
-  FROM merchants m
-  WHERE m.merchant_name = 'LoadTest Merchant ' || LPAD(gs::text, 3, '0')
-    AND m.address = 'LoadTest Street ' || gs
+  SELECT 1 FROM merchants m WHERE m.merchant_name = mp.merchant_name AND m.address = mp.address
 );
 
 -- 4) Create one test card per load-test client (if client has no card yet)
