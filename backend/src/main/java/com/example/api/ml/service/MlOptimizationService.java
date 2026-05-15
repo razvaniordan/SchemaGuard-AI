@@ -9,7 +9,7 @@ import com.example.api.entity.AcquiringPartner;
 import com.example.api.entity.Bank;
 import com.example.api.entity.CardNetwork;
 import com.example.api.entity.Region;
-import com.example.api.entity.MccCode;
+import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.example.api.ml.client.MlCoreClient;
 import com.example.api.ml.cache.PortfolioAnomalyCacheService;
 import com.example.api.ml.dto.*;
@@ -111,7 +111,28 @@ public class MlOptimizationService {
                             currentTransaction.getTransactionCurrency()
                     );
 
-            return mlCoreClient.compareFees(request);
+            String responseJson = mlCoreClient.compareFees(request);
+            JsonNode response = objectMapper.readTree(responseJson);
+
+            ObjectNode enriched = (ObjectNode) response.deepCopy();
+
+            enriched.put("currentCategory", currentRuleResult.category());
+            enriched.put("optimalCategory", optimalRuleResult.category());
+            enriched.put("optimizedCategory", optimalRuleResult.category());
+
+            enriched.put("currentFeeRate", currentRuleResult.feeRate());
+            enriched.put("optimalFeeRate", optimalRuleResult.feeRate());
+            enriched.put("optimizedFeeRate", optimalRuleResult.feeRate());
+
+            enriched.put("currentFeeAmount", currentRuleResult.feeAmount());
+            enriched.put("optimizedFeeAmount", optimalRuleResult.feeAmount());
+            enriched.put("optimalFeeAmount", optimalRuleResult.feeAmount());
+
+            enriched.put("currentAppliedRule", currentRuleResult.category());
+            enriched.put("optimalAppliedRule", optimalRuleResult.category());
+            enriched.put("optimizedAppliedRule", optimalRuleResult.category());
+
+            return objectMapper.writeValueAsString(enriched);
 
         } catch (Exception e) {
             throw new RuntimeException(
