@@ -7,6 +7,7 @@ import type {
   TransactionDto,
 } from './types';
 import { apiClient } from './client';
+
 type BackendTransaction = {
   transactionId: number;
   clientId?: number;
@@ -39,15 +40,11 @@ type BackendTransaction = {
 };
 
 type BackendTransactionPage = {
-  rows?: BackendTransaction[];
-  content?: BackendTransaction[];
-  data?: BackendTransaction[];
-  items?: BackendTransaction[];
-  transactions?: BackendTransaction[];
-  total?: number;
-  page?: number;
-  pageSize?: number;
-  totalPages?: number;
+  rows: BackendTransaction[];
+  total: number;
+  page: number;
+  pageSize: number;
+  totalPages: number;
 };
 
 
@@ -135,11 +132,6 @@ type BackendOptimizationReport = {
   anomalyInsights?: Record<string, unknown> | unknown[];
 };
 
-type BackendMissedConditionsResponse = {
-  missedConditions?: unknown[];
-  conditions?: unknown[];
-};
-
 const DEFAULT_TRANSACTION_ID = '1';
 
 function backendId(transactionId?: string | null): string {
@@ -183,34 +175,6 @@ function firstString(source: Record<string, unknown>, keys: string[], fallback =
     }
   }
   return fallback;
-}
-
-function firstValue(source: Record<string, unknown>, keys: string[]): unknown {
-  for (const key of keys) {
-    if (source[key] !== undefined && source[key] !== null) {
-      return source[key];
-    }
-  }
-
-  return undefined;
-}
-
-function displayValue(value: unknown, fallback = 'N/A'): string {
-  if (typeof value === 'string' && value.length > 0) return value;
-  if (typeof value === 'number' && Number.isFinite(value)) return String(value);
-  if (typeof value === 'boolean') return value ? 'Yes' : 'No';
-
-  return fallback;
-}
-
-function displayImpact(value: unknown): string {
-  if (typeof value === 'number' && Number.isFinite(value)) {
-    if (value === 0) return 'No measurable fee-rate impact';
-
-    return `${(value * 100).toFixed(2)} pp fee-rate opportunity`;
-  }
-
-  return displayValue(value, 'May prevent optimal fee qualification.');
 }
 
 function nestedRecord(source: Record<string, unknown>, keys: string[]): Record<string, unknown> {
@@ -286,8 +250,16 @@ function mapTransaction(transaction: BackendTransaction): TransactionDto {
 
 function mapRecommendation(value: unknown, index: number): RecommendationDto {
   const recommendation = asRecord(value);
-  const score = firstNumber(recommendation, ['score', 'mlScore', 'priorityScore', 'confidence'], 0.5);
-  const priority = asString(recommendation.priority, score >= 0.8 ? 'HIGH' : score >= 0.5 ? 'MEDIUM' : 'LOW');
+  const rawScore = firstNumber(
+    recommendation,
+    ['score', 'mlScore', 'priorityScore', 'confidence'],
+    0.5,
+  );
+  const score = rawScore > 1 ? rawScore / 100 : rawScore;
+  const priority = asString(
+    recommendation.priority,
+    score >= 0.8 ? 'HIGH' : score >= 0.5 ? 'MEDIUM' : 'LOW',
+  );
   const difficulty = asString(recommendation.difficulty, 'MEDIUM');
 
   return {
@@ -307,28 +279,15 @@ function mapRecommendation(value: unknown, index: number): RecommendationDto {
 
 function mapMissedConditionDto(value: unknown, index: number): MissedConditionDto {
   const condition = asRecord(value);
-  const impact = firstValue(condition, ['impact', 'expectedImpact']);
 
   return {
     id: firstString(condition, ['id', 'conditionId'], `COND-${index + 1}`),
-    condition: firstString(
-      condition,
-      ['condition', 'conditionName', 'type'],
-      'Optimization condition',
-    ),
-    currentValue: displayValue(
-      firstValue(condition, ['currentValue', 'actualValue']),
-    ),
-    optimalValue: displayValue(
-      firstValue(condition, ['optimalValue', 'recommendedValue', 'expectedValue']),
-    ),
-    impact: displayImpact(impact),
+    condition: firstString(condition, ['condition', 'conditionName', 'type'], 'Optimization condition'),
+    currentValue: firstString(condition, ['currentValue', 'actualValue'], 'N/A'),
+    optimalValue: firstString(condition, ['optimalValue', 'recommendedValue', 'expectedValue'], 'N/A'),
+    impact: firstString(condition, ['impact', 'expectedImpact'], 'May prevent optimal fee qualification.'),
     confidence: firstNumber(condition, ['confidence', 'score'], 0.75),
-    explanation: firstString(
-      condition,
-      ['explanation', 'reason'],
-      'This condition was not met for the selected transaction.',
-    ),
+    explanation: firstString(condition, ['explanation', 'reason'], 'This condition was not met for the selected transaction.'),
   };
 }
 
@@ -398,23 +357,31 @@ function mapReport(report: BackendOptimizationReport): OptimizationReportDto {
   const savingsAmount = firstNumber(feeComparison, ['absoluteSavings', 'savingsAmount'], Math.max(0, currentFeeAmount - optimizedFeeAmount));
   const percentageSavings = firstNumber(feeComparison, ['percentageSavings', 'savingsPercentage'], currentFeeAmount ? (savingsAmount / currentFeeAmount) * 100 : 0);
 
-  const missedConditions = listFrom(report.missedConditions, [
-  'missedConditions',
-  'conditions',
-]).map(mapMissedConditionDto);
+  const missedConditionDtos = listFrom(
+    report.missedConditions,
+    ['missedConditions', 'conditions'],
+  ).map(mapMissedConditionDto);
   const recommendations = listFrom(report.rankedRecommendations, ['recommendations', 'rankedRecommendations']).map(mapRecommendation);
 
   return {
     transactionId: String(report.transactionId),
     currentClassification: {
-      category: firstString(current, ['category', 'classification'], firstString(feeComparison, ['currentCategory'], 'Current classification')),
+      category: firstString(
+        current,
+        ['category', 'classification'],
+        firstString(feeComparison, ['currentCategory'], 'N/A'),
+      ),
       feeRate: currentFeeRate,
       feeAmount: currentFeeAmount,
       appliedRule: firstString(current, ['appliedRule', 'ruleCode'], firstString(feeComparison, ['currentAppliedRule'], 'N/A')),
       explanation: firstString(current, ['explanation'], report.summary ?? 'Current transaction classification.'),
     },
     optimizedClassification: {
-      category: firstString(optimized, ['category', 'classification'], firstString(feeComparison, ['optimizedCategory', 'optimalCategory'], 'Optimized classification')),
+      category: firstString(
+        optimized,
+        ['category', 'classification'],
+        firstString(feeComparison, ['optimizedCategory', 'optimalCategory'], 'N/A'),
+      ),
       feeRate: optimizedFeeRate,
       feeAmount: optimizedFeeAmount,
       appliedRule: firstString(optimized, ['appliedRule', 'ruleCode'], firstString(feeComparison, ['optimizedAppliedRule', 'optimalAppliedRule'], 'N/A')),
@@ -432,36 +399,22 @@ function mapReport(report: BackendOptimizationReport): OptimizationReportDto {
       modelVersion: asString(feeComparison.modelVersion, 'backend-ml-service'),
       fallbackUsed: Boolean(feeComparison.fallbackUsed),
     },
-      missedConditions,
+      missedConditions: missedConditionDtos,
     recommendations,
   };
 }
 
 export const mlService = {
   async getTransactions(page = 1, pageSize = 10): Promise<TransactionPageDto> {
-  const response = await apiClient<BackendTransactionPage | BackendTransaction[]>(
-    `/transactions?page=${page}&pageSize=${pageSize}`,
-  );
+    const response = await apiClient<BackendTransactionPage>(
+      `/transactions?page=${page}&pageSize=${pageSize}`,
+    );
 
-  const rows = Array.isArray(response)
-    ? response
-    : response.rows ??
-      response.content ??
-      response.data ??
-      response.items ??
-      response.transactions ??
-      [];
-
-  return {
-    rows: rows.map(mapTransaction),
-    total: Array.isArray(response) ? rows.length : response.total ?? rows.length,
-    page: Array.isArray(response) ? page : response.page ?? page,
-    pageSize: Array.isArray(response) ? pageSize : response.pageSize ?? pageSize,
-    totalPages: Array.isArray(response)
-      ? Math.max(1, Math.ceil(rows.length / pageSize))
-      : response.totalPages ?? Math.max(1, Math.ceil((response.total ?? rows.length) / pageSize)),
-  };
-},
+    return {
+      ...response,
+      rows: response.rows.map(mapTransaction),
+    };
+  },
 
   async getTransactionById(transactionId: string | null): Promise<TransactionDto | undefined> {
     const transaction = await apiClient<BackendTransaction>(`/transactions/${backendId(transactionId)}`);
@@ -472,34 +425,16 @@ export const mlService = {
     const report = await apiClient<BackendOptimizationReport>(
       `/ml/transactions/${backendId(transactionId)}/optimization-report`,
     );
-
     return mapReport(report);
   },
 
-  async getMissedConditions(
-  transactionId: string | null,
-): Promise<MissedConditionDto[]> {
-  if (!transactionId) {
-    return [];
-  }
-
-    const root = await apiClient<BackendMissedConditionsResponse | unknown[]>(
-      `/ml/transactions/${backendId(transactionId)}/missed-conditions`,
-    );
-
-  return listFrom(root, ['missedConditions', 'conditions']).map(
-    mapMissedConditionDto,
-  );
-},
-
   async getClassification(transactionId: string | null): Promise<TransactionClassification> {
     const response = await apiClient<BackendClassificationResponse>(
-      `/transactions/${backendId(transactionId)}/classify`,
+      `/transactions/${backendId(transactionId)}/classify`,  
       {
-        method: 'POST',
-      },
+      method: 'POST',
+    }
     );
-
     return mapClassification(response);
   },
 

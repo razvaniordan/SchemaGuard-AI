@@ -64,6 +64,12 @@ class TransactionSimulator:
 
         transaction[field] = new_value
 
+        if field == "threeDS" and new_value is True:
+            transaction["eci"] = "05"
+
+        if field == "threeDS" and new_value is False:
+            transaction["eci"] = "07"
+
         return TransactionChange(
             field=field,
             originalValue=original_value,

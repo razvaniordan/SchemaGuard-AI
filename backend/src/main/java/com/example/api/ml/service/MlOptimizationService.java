@@ -1,14 +1,15 @@
 package com.example.api.ml.service;
 
+import com.example.api.entity.Transaction;
+import com.example.api.entity.MccCode;
+import com.example.api.entity.Client;
+import com.example.api.entity.Merchant;
+import com.example.api.entity.Card;
 import com.example.api.entity.AcquiringPartner;
 import com.example.api.entity.Bank;
-import com.example.api.entity.Card;
 import com.example.api.entity.CardNetwork;
-import com.example.api.entity.Client;
-import com.example.api.entity.MccCode;
-import com.example.api.entity.Merchant;
 import com.example.api.entity.Region;
-import com.example.api.entity.Transaction;
+import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.example.api.ml.client.MlCoreClient;
 import com.example.api.ml.cache.PortfolioAnomalyCacheService;
 import com.example.api.ml.dto.*;
@@ -16,16 +17,13 @@ import com.example.api.ml.mapper.MlRuleEngineResultMapper;
 import com.example.api.ml.mapper.MlSimulationTransactionMapper;
 import com.example.api.ml.mapper.MlTransactionMapper;
 import com.example.api.repository.TransactionRepository;
-import com.example.api.ruleengine.model.RuleEngineResult;
 import com.example.api.ruleengine.service.RuleEngineService;
-import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.example.api.ruleengine.model.RuleEngineResult;
+import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
-
-import java.util.List;
-import java.util.Objects;
 
 @Service
 @RequiredArgsConstructor
@@ -39,6 +37,7 @@ public class MlOptimizationService {
     private final RuleEngineService ruleEngineService;
     private final MlSimulationTransactionMapper mlSimulationTransactionMapper;
         private final PortfolioAnomalyCacheService portfolioAnomalyCacheService;
+
 
     private Transaction getExistingTransaction(Long transactionId) {
         return transactionRepository.findById(transactionId)
@@ -112,7 +111,28 @@ public class MlOptimizationService {
                             currentTransaction.getTransactionCurrency()
                     );
 
-            return mlCoreClient.compareFees(request);
+            String responseJson = mlCoreClient.compareFees(request);
+            JsonNode response = objectMapper.readTree(responseJson);
+
+            ObjectNode enriched = (ObjectNode) response.deepCopy();
+
+            enriched.put("currentCategory", currentRuleResult.category());
+            enriched.put("optimalCategory", optimalRuleResult.category());
+            enriched.put("optimizedCategory", optimalRuleResult.category());
+
+            enriched.put("currentFeeRate", currentRuleResult.feeRate());
+            enriched.put("optimalFeeRate", optimalRuleResult.feeRate());
+            enriched.put("optimizedFeeRate", optimalRuleResult.feeRate());
+
+            enriched.put("currentFeeAmount", currentRuleResult.feeAmount());
+            enriched.put("optimizedFeeAmount", optimalRuleResult.feeAmount());
+            enriched.put("optimalFeeAmount", optimalRuleResult.feeAmount());
+
+            enriched.put("currentAppliedRule", currentRuleResult.category());
+            enriched.put("optimalAppliedRule", optimalRuleResult.category());
+            enriched.put("optimizedAppliedRule", optimalRuleResult.category());
+
+            return objectMapper.writeValueAsString(enriched);
 
         } catch (Exception e) {
             throw new RuntimeException(
@@ -161,6 +181,7 @@ public class MlOptimizationService {
     }
 
     private Transaction buildDemoTransaction(Long transactionId) {
+
         Transaction tx = new Transaction();
 
         Client client = new Client();
@@ -223,6 +244,7 @@ public class MlOptimizationService {
     }
 
     public String prioritizeRecommendations(Long transactionId) {
+
         Transaction currentTransaction = getExistingTransaction(transactionId);
 
         RuleEngineResult currentRuleResult =
@@ -256,6 +278,7 @@ public class MlOptimizationService {
     }
 
     public String simulateTransaction(Long transactionId) {
+
         Transaction currentTransaction = getExistingTransaction(transactionId);
 
         RuleEngineResult currentRuleResult =
@@ -296,8 +319,8 @@ public class MlOptimizationService {
         }
     }
 
-    @Transactional(readOnly = true)
     public String missedConditions(Long transactionId) {
+
         Transaction currentTransaction = getExistingTransaction(transactionId);
 
         RuleEngineResult currentRuleResult =
@@ -321,8 +344,15 @@ public class MlOptimizationService {
                         candidateRuleResult
                 );
 
-        Transaction simulatedTransaction = candidateTransaction;
-        RuleEngineResult optimalRuleResult = candidateRuleResult;
+        Transaction simulatedTransaction =
+                simulateOptimizedTransaction(
+                        currentTransaction,
+                        currentMlResult,
+                        candidateMlResult
+                );
+
+        RuleEngineResult optimalRuleResult =
+                ruleEngineService.evaluate(simulatedTransaction);
 
         try {
             var root = objectMapper.createObjectNode();
@@ -334,84 +364,91 @@ public class MlOptimizationService {
 
             var missedConditions = objectMapper.createArrayNode();
 
-            if (!Objects.equals(
-                    currentRuleResult.category(),
-                    optimalRuleResult.category()
-            )) {
+            double feeRateImpact = Math.max(
+                    currentRuleResult.feeRate() - optimalRuleResult.feeRate(),
+                    0
+            );
+
+            boolean categoryChanged =
+                    currentRuleResult.category() != null
+                            && optimalRuleResult.category() != null
+                            && !currentRuleResult.category().equals(optimalRuleResult.category());
+
+            if (categoryChanged) {
                 var condition = objectMapper.createObjectNode();
 
-                condition.put("condition", "interchange category");
+                condition.put("condition", "Interchange category");
                 condition.put("currentValue", currentRuleResult.category());
                 condition.put("optimalValue", optimalRuleResult.category());
-                condition.put(
-                        "impact",
-                        Math.max(
-                                currentRuleResult.feeRate() - optimalRuleResult.feeRate(),
-                                0
-                        )
-                );
+                condition.put("impact", feeRateImpact);
                 condition.put("confidence", 0.9);
                 condition.put(
                         "explanation",
-                        "The simulated transaction qualifies for a different interchange category."
+                        "The optimized transaction qualifies for a better interchange category."
                 );
 
                 missedConditions.add(condition);
             }
 
-            if (!Objects.equals(
-                    currentTransaction.getIs3dsAuthenticated(),
-                    simulatedTransaction.getIs3dsAuthenticated()
-            )) {
+            boolean isEcommerce =
+                    currentTransaction.getTransactionChannel() != null
+                            && "ECOMMERCE".equalsIgnoreCase(
+                            currentTransaction.getTransactionChannel().toString()
+                    );
+
+            boolean currentHas3ds =
+                    currentTransaction.getIs3dsAuthenticated() != null
+                            && "Y".equalsIgnoreCase(currentTransaction.getIs3dsAuthenticated());
+
+            boolean optimizedHas3ds =
+                    simulatedTransaction.getIs3dsAuthenticated() != null
+                            && "Y".equalsIgnoreCase(simulatedTransaction.getIs3dsAuthenticated());
+
+            if (isEcommerce && !currentHas3ds && optimizedHas3ds) {
                 var condition = objectMapper.createObjectNode();
 
-                condition.put("condition", "3DS authentication");
-                condition.put("currentValue", currentTransaction.getIs3dsAuthenticated());
-                condition.put("optimalValue", simulatedTransaction.getIs3dsAuthenticated());
-                condition.put(
-                        "impact",
-                        Math.max(
-                                currentRuleResult.feeRate() - optimalRuleResult.feeRate(),
-                                0
-                        ) * 0.6
-                );
+                condition.put("condition", "3DS Authentication");
+                condition.put("currentValue", "Not authenticated");
+                condition.put("optimalValue", "3DS authenticated");
+                condition.put("impact", Math.max(feeRateImpact * 0.6, 0));
                 condition.put("confidence", 0.85);
                 condition.put(
                         "explanation",
-                        "The transaction could benefit from enabling 3DS authentication."
+                        "E-commerce transaction is missing 3DS authentication and may qualify for worse interchange fees."
                 );
 
                 missedConditions.add(condition);
             }
 
-            if (currentTransaction.getClearingDatetime() != null
-                    && simulatedTransaction.getClearingDatetime() != null
-                    && !Objects.equals(
-                    currentTransaction.getClearingDatetime(),
-                    simulatedTransaction.getClearingDatetime()
-            )) {
+            Integer clearingDelayDays = null;
+
+            if (currentTransaction.getAuthorizationDatetime() != null
+                    && currentTransaction.getClearingDatetime() != null) {
+                clearingDelayDays = (int) java.time.Duration.between(
+                        currentTransaction.getAuthorizationDatetime(),
+                        currentTransaction.getClearingDatetime()
+                ).toDays();
+            }
+
+            boolean clearingImproved =
+                    currentTransaction.getClearingDatetime() != null
+                            && simulatedTransaction.getClearingDatetime() != null
+                            && !currentTransaction.getClearingDatetime()
+                            .equals(simulatedTransaction.getClearingDatetime());
+
+            if (clearingDelayDays != null
+                    && clearingDelayDays >= 2
+                    && clearingImproved) {
                 var condition = objectMapper.createObjectNode();
 
-                condition.put("condition", "clearing time");
-                condition.put(
-                        "currentValue",
-                        currentTransaction.getClearingDatetime().toString()
-                );
-                condition.put(
-                        "optimalValue",
-                        simulatedTransaction.getClearingDatetime().toString()
-                );
-                condition.put(
-                        "impact",
-                        Math.max(
-                                currentRuleResult.feeRate() - optimalRuleResult.feeRate(),
-                                0
-                        ) * 0.4
-                );
+                condition.put("condition", "Timely Clearing");
+                condition.put("currentValue", clearingDelayDays + " days");
+                condition.put("optimalValue", "Same day or next day clearing");
+                condition.put("impact", Math.max(feeRateImpact * 0.4, 0));
                 condition.put("confidence", 0.8);
                 condition.put(
                         "explanation",
-                        "The transaction could benefit from faster clearing."
+                        "Delayed clearing may prevent optimal fee qualification."
                 );
 
                 missedConditions.add(condition);
@@ -427,26 +464,11 @@ public class MlOptimizationService {
     }
 
     public String detectPortfolioAnomalies() {
-          
-        List<Transaction> transactions = transactionRepository.findAll();
-
-        if (transactions.isEmpty()) {
-            transactions = List.of(buildDemoTransaction(1L));
-        }
-
-        List<MlRuleEngineResult> results = transactions.stream()
-                .map(transaction -> {
-                    RuleEngineResult ruleResult =
-                            ruleEngineService.evaluate(transaction);
-
-                    return mlRuleEngineResultMapper.toMlResult(
-                            transaction,
-                            ruleResult
-                    );
-                })
-                .toList();
-
-        return mlCoreClient.detectAnomalies(results);
+                try {
+                        return objectMapper.writeValueAsString(portfolioAnomalyCacheService.getSnapshot());
+                } catch (Exception e) {
+                        throw new RuntimeException("Failed to serialize cached portfolio anomalies", e);
+                }
     }
 
     public MlOptimizationReportResponse optimizationReport(
@@ -471,26 +493,11 @@ public class MlOptimizationService {
             JsonNode anomalyInsights = portfolioAnomalyCacheService.getSnapshot();
 
             JsonNode savingsProjections = objectMapper.createObjectNode()
-                    .put(
-                            "monthlyProjectedSavings",
-                            feeComparison.path("monthlyProjectedSavings").asDouble()
-                    )
-                    .put(
-                            "yearlyProjectedSavings",
-                            feeComparison.path("yearlyProjectedSavings").asDouble()
-                    )
-                    .put(
-                            "currency",
-                            feeComparison.path("currency").asText()
-                    )
-                    .put(
-                            "mlPredictedSavings",
-                            feeComparison.path("mlPredictedSavings").asDouble()
-                    )
-                    .put(
-                            "mlConfidence",
-                            feeComparison.path("mlConfidence").asDouble()
-                    );
+                    .put("monthlyProjectedSavings", feeComparison.path("monthlyProjectedSavings").asDouble())
+                    .put("yearlyProjectedSavings", feeComparison.path("yearlyProjectedSavings").asDouble())
+                    .put("currency", feeComparison.path("currency").asText())
+                    .put("mlPredictedSavings", feeComparison.path("mlPredictedSavings").asDouble())
+                    .put("mlConfidence", feeComparison.path("mlConfidence").asDouble());
 
             String summary = buildOptimizationSummary(
                     feeComparison,
