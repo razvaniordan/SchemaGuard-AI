@@ -91,3 +91,51 @@ export type AnomalyDto = {
   severity: AnomalySeverity;
   explanation: string;
 };
+
+export type DashboardKpiDto = {
+  transactionCount: number;
+  totalTransactionAmount: number;
+  totalCurrentFeeAmount: number;
+  totalOptimalFeeAmount: number;
+  totalSavingAmount: number;
+  avgSavingPercentage: number;
+};
+
+export type MonthlySavingsDto = {
+  yearNumber: number;
+  monthNumber: number;
+  monthName: string;
+  transactionCount: number;
+  totalTransactionAmount: number;
+  totalCurrentFeeAmount: number;
+  totalOptimalFeeAmount: number;
+  totalSavingAmount: number;
+  avgSavingPercentage: number;
+};
+
+export type MerchantOptimizationDto = {
+  merchantName: string;
+  mccCode: string;
+  transactionCount: number;
+  totalCurrentFeeAmount: number;
+  totalOptimalFeeAmount: number;
+  totalSavingAmount: number;
+  avgSavingPercentage: number;
+};
+
+export type CategoryTransitionDto = {
+  currentCategoryName: string;
+  optimalCategoryName: string;
+  transactionCount: number;
+  totalCurrentFeeAmount: number;
+  totalOptimalFeeAmount: number;
+  totalSavingAmount: number;
+  avgSavingPercentage: number;
+};
+
+export type DashboardOverviewDto = {
+  kpis: DashboardKpiDto;
+  monthlySavings: MonthlySavingsDto[];
+  merchantOptimization: MerchantOptimizationDto[];
+  categoryTransitions: CategoryTransitionDto[];
+};
