@@ -114,9 +114,13 @@ export type MonthlySavingsDto = {
 };
 
 export type MerchantOptimizationDto = {
+  merchantKey?: number;
+  sourceMerchantId?: string | number;
   merchantName: string;
   mccCode: string;
+  mccDescription?: string;
   transactionCount: number;
+  totalTransactionAmount?: number;
   totalCurrentFeeAmount: number;
   totalOptimalFeeAmount: number;
   totalSavingAmount: number;
@@ -124,6 +128,8 @@ export type MerchantOptimizationDto = {
 };
 
 export type CategoryTransitionDto = {
+  currentCategoryKey?: number;
+  optimalCategoryKey?: number;
   currentCategoryName: string;
   optimalCategoryName: string;
   transactionCount: number;
@@ -136,6 +142,6 @@ export type CategoryTransitionDto = {
 export type DashboardOverviewDto = {
   kpis: DashboardKpiDto;
   monthlySavings: MonthlySavingsDto[];
-  merchantOptimization: MerchantOptimizationDto[];
+  topMerchants: MerchantOptimizationDto[];
   categoryTransitions: CategoryTransitionDto[];
 };
