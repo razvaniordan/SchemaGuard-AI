@@ -181,12 +181,12 @@ SELECT
     ELSE (20 + (gs * 13 % 900))::NUMERIC(12,2)
   END AS transaction_amount,
   'EUR'::CHAR(3) AS transaction_currency,
-  (date_trunc('second', NOW()) - INTERVAL '2 days' + (gs || ' seconds')::INTERVAL) AS authorization_datetime,
+  dt.base_authorization_datetime AS authorization_datetime,
   CASE
     WHEN gs % 10 = 8 THEN NULL  -- declined/no clearing
-    WHEN gs % 10 IN (2,3) THEN (date_trunc('second', NOW()) - INTERVAL '2 days' + (gs || ' seconds')::INTERVAL + INTERVAL '36 hours')
-    WHEN gs % 10 = 4 THEN (date_trunc('second', NOW()) - INTERVAL '2 days' + (gs || ' seconds')::INTERVAL + INTERVAL '30 hours')
-    ELSE (date_trunc('second', NOW()) - INTERVAL '2 days' + (gs || ' seconds')::INTERVAL + INTERVAL '8 hours')
+    WHEN gs % 10 IN (2,3) THEN dt.base_authorization_datetime + INTERVAL '36 hours'
+    WHEN gs % 10 = 4 THEN dt.base_authorization_datetime + INTERVAL '30 hours'
+    ELSE dt.base_authorization_datetime + INTERVAL '8 hours'
   END AS clearing_datetime,
   lc.card_type_name,
   CASE
@@ -204,6 +204,17 @@ SELECT
 FROM generate_series(1, 500) gs
 JOIN card_count cc ON TRUE
 JOIN merchant_count mc ON TRUE
+JOIN LATERAL (
+  -- Deterministic pseudo-random distribution across years/months for dashboard testing.
+  SELECT make_timestamp(
+    2020 + ((gs * 17) % 7),   -- 2020..2026
+    1 + ((gs * 29) % 12),     -- month 1..12
+    1 + ((gs * 31) % 28),     -- day 1..28 (safe for all months)
+    (gs * 7) % 24,
+    (gs * 11) % 60,
+    (gs * 13) % 60
+  ) AS base_authorization_datetime
+) dt ON TRUE
 JOIN load_cards lc
   ON lc.rn = ((gs - 1) % cc.cnt) + 1
 JOIN load_merchants lm
