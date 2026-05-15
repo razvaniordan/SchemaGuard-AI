@@ -387,12 +387,20 @@ function mapReport(report: BackendOptimizationReport): OptimizationReportDto {
       appliedRule: firstString(optimized, ['appliedRule', 'ruleCode'], firstString(feeComparison, ['optimizedAppliedRule', 'optimalAppliedRule'], 'N/A')),
       explanation: firstString(optimized, ['explanation'], 'Optimized classification after recommended changes.'),
     },
-    savings: {
+   savings: {
       amount: savingsAmount,
       percentage: percentageSavings,
-      monthlyProjectedSavings: firstNumber(savingsProjections, ['monthlyProjectedSavings'], firstNumber(feeComparison, ['monthlyProjectedSavings'], savingsAmount * 1000)),
-      yearlyProjectedSavings: firstNumber(savingsProjections, ['yearlyProjectedSavings'], firstNumber(feeComparison, ['yearlyProjectedSavings'], savingsAmount * 12000)),
-      perTransactionSaving: firstNumber(savingsProjections, ['mlPredictedSavings'], savingsAmount),
+      monthlyProjectedSavings: firstNumber(
+        savingsProjections,
+        ['monthlyProjectedSavings'],
+        firstNumber(feeComparison, ['monthlyProjectedSavings'], 0),
+      ),
+      yearlyProjectedSavings: firstNumber(
+        savingsProjections,
+        ['yearlyProjectedSavings'],
+        firstNumber(feeComparison, ['yearlyProjectedSavings'], 0),
+      ),
+      perTransactionSaving: savingsAmount,
     },
     ml: {
       confidence: firstNumber(savingsProjections, ['mlConfidence'], firstNumber(feeComparison, ['mlConfidence', 'confidence'], 0.75)),

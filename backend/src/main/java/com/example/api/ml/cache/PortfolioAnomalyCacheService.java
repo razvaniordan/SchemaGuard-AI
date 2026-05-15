@@ -20,7 +20,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
-
+import org.springframework.transaction.annotation.Transactional;
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.List;
@@ -43,6 +43,7 @@ public class PortfolioAnomalyCacheService {
     private volatile String errorMessage;
     private volatile JsonNode cachedSnapshot;
 
+    @Transactional(readOnly = true)
     public void refresh() {
         if (!refreshInProgress.compareAndSet(false, true)) {
             return;
