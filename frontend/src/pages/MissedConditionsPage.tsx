@@ -1,7 +1,9 @@
 import { useEffect, useState } from 'react';
 import { mlService } from '../services/api/mlService';
-import type { OptimizationReportDto } from '../services/api/types';
-import type { MissedConditionDto } from '../services/api/types';
+import type {
+  MissedConditionDto,
+  OptimizationReportDto,
+} from '../services/api/types';
 
 type Props = {
   transactionId: string | null;
@@ -9,14 +11,63 @@ type Props = {
 
 export function MissedConditionsPage({ transactionId }: Props) {
   const [report, setReport] = useState<OptimizationReportDto | null>(null);
+  const [isLoading, setIsLoading] = useState(false);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   useEffect(() => {
-    mlService
-      .getOptimizationReport(transactionId)
-      .then(setReport);
-  }, [transactionId]);
+  if (!transactionId) {
+    return;
+  }
 
-  if (!report) {
+  let isMounted = true;
+
+  async function loadReport() {
+    try {
+      const response = await mlService.getOptimizationReport(transactionId);
+
+      if (!isMounted) return;
+
+      setReport(response);
+      setErrorMessage(null);
+    } catch (error) {
+      if (!isMounted) return;
+
+      console.error(error);
+      setErrorMessage('Failed to load optimization report.');
+    } finally {
+      if (isMounted) {
+        setIsLoading(false);
+      }
+    }
+  }
+
+  loadReport();
+
+  return () => {
+    isMounted = false;
+  };
+}, [transactionId]);
+
+  if (!transactionId) {
+    return (
+      <section className="rounded-2xl border border-brand-border bg-white p-6 shadow-sm">
+        <p className="text-sm font-medium uppercase tracking-wide text-brand-primary">
+          Explainability
+        </p>
+
+        <h1 className="mt-2 text-2xl font-semibold text-brand-text sm:text-3xl">
+          Missed Conditions
+        </h1>
+
+        <p className="mt-3 max-w-3xl text-sm leading-6 text-brand-muted">
+          Select a transaction first to see the conditions that prevented it
+          from qualifying for a better fee category.
+        </p>
+      </section>
+    );
+  }
+
+  if (isLoading) {
     return (
       <section className="rounded-2xl border border-brand-border bg-white p-6 shadow-sm">
         <h1 className="text-2xl font-semibold text-brand-text">
@@ -25,6 +76,23 @@ export function MissedConditionsPage({ transactionId }: Props) {
         <p className="mt-3 text-sm text-brand-muted">Loading conditions...</p>
       </section>
     );
+  }
+
+  if (errorMessage) {
+    return (
+      <section className="rounded-2xl border border-red-200 bg-red-50 p-6 shadow-sm">
+        <h1 className="text-2xl font-semibold text-red-800">
+          Missed Conditions
+        </h1>
+        <p className="mt-3 text-sm font-medium text-red-700">
+          {errorMessage}
+        </p>
+      </section>
+    );
+  }
+
+  if (!report) {
+    return null;
   }
 
   return (
@@ -41,8 +109,8 @@ export function MissedConditionsPage({ transactionId }: Props) {
             </h1>
 
             <p className="mt-3 max-w-3xl text-sm leading-6 text-brand-muted">
-              Conditions that prevented the transaction from qualifying for a
-              better fee category.
+              Conditions that prevented transaction #{report.transactionId} from
+              qualifying for a better fee category.
             </p>
           </div>
 
@@ -52,11 +120,23 @@ export function MissedConditionsPage({ transactionId }: Props) {
         </div>
       </section>
 
-      <section className="grid gap-5">
-        {report.missedConditions.map((condition) => (
-          <ConditionCard key={condition.id} condition={condition} />
-        ))}
-      </section>
+      {report.missedConditions.length === 0 ? (
+        <section className="rounded-2xl border border-brand-border bg-white p-6 shadow-sm">
+          <p className="text-sm font-semibold text-brand-text">
+            No missed conditions found for transaction #{report.transactionId}.
+          </p>
+          <p className="mt-2 text-sm text-brand-muted">
+            The backend did not identify 3DS, clearing-time, category or other
+            qualification blockers for this transaction.
+          </p>
+        </section>
+      ) : (
+        <section className="grid gap-5">
+          {report.missedConditions.map((condition) => (
+            <ConditionCard key={condition.id} condition={condition} />
+          ))}
+        </section>
+      )}
     </div>
   );
 }
@@ -93,7 +173,7 @@ function ConditionCard({ condition }: { condition: MissedConditionDto }) {
       <div className="mt-6 grid gap-4 md:grid-cols-3">
         <Field label="Current Value" value={condition.currentValue} />
         <Field label="Optimal Value" value={condition.optimalValue} />
-        <Field label="Impact" value={condition.impact} />
+        <Field label="Impact" value={String(condition.impact)} />
       </div>
     </article>
   );
