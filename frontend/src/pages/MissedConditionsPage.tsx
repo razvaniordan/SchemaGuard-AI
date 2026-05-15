@@ -85,7 +85,9 @@ export function MissedConditionsPage({ transactionId }: Props) {
           Missed Conditions
         </h1>
 
-        <p className="mt-3 text-sm text-brand-muted">Loading conditions...</p>
+        <p className="mt-3 text-sm text-brand-muted">
+          Loading conditions...
+        </p>
       </section>
     );
   }
