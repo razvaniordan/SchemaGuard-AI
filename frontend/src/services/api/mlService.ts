@@ -443,7 +443,6 @@ export const mlService = {
     `/transactions?page=${page}&pageSize=${pageSize}`,
   );
 
-<<<<<<< HEAD
   const rows = Array.isArray(response)
     ? response
     : response.rows ??
@@ -466,13 +465,6 @@ export const mlService = {
 
   async getTransactionById(transactionId: string | null): Promise<TransactionDto | undefined> {
     const transaction = await apiClient<BackendTransaction>(`/transactions/${backendId(transactionId)}`);
-=======
-  async getTransactionById(transactionId: string | null): Promise<MockTransaction | undefined> {
-    const transaction = await apiClient<BackendTransaction>(
-      `/transactions/${backendId(transactionId)}`,
-    );
-
->>>>>>> 8741b1c (fix pipeline)
     return mapTransaction(transaction);
   },
 
@@ -484,35 +476,21 @@ export const mlService = {
     return mapReport(report);
   },
 
-<<<<<<< HEAD
   async getMissedConditions(
   transactionId: string | null,
 ): Promise<MissedConditionDto[]> {
   if (!transactionId) {
     return [];
   }
-=======
-  async getMissedConditions(transactionId: string | null): Promise<MissedCondition[]> {
-    if (!transactionId) {
-      return [];
-    }
->>>>>>> 8741b1c (fix pipeline)
 
     const root = await apiClient<BackendMissedConditionsResponse | unknown[]>(
       `/ml/transactions/${backendId(transactionId)}/missed-conditions`,
     );
 
-<<<<<<< HEAD
   return listFrom(root, ['missedConditions', 'conditions']).map(
     mapMissedConditionDto,
   );
 },
-=======
-    return listFrom(root, ['missedConditions', 'conditions']).map(
-      mapMissedCondition,
-    );
-  },
->>>>>>> 8741b1c (fix pipeline)
 
   async getClassification(transactionId: string | null): Promise<TransactionClassification> {
     const response = await apiClient<BackendClassificationResponse>(
@@ -525,31 +503,15 @@ export const mlService = {
     return mapClassification(response);
   },
 
-<<<<<<< HEAD
   async getRecommendations(transactionId: string | null): Promise<RecommendationDto[]> {
     const root = await apiClient<unknown>(`/ml/transactions/${backendId(transactionId)}/recommendations`);
-=======
-  async getRecommendations(transactionId: string | null): Promise<MockRecommendation[]> {
-    const root = await apiClient<unknown>(
-      `/ml/transactions/${backendId(transactionId)}/recommendations`,
-    );
-
->>>>>>> 8741b1c (fix pipeline)
     return listFrom(root, ['recommendations', 'rankedRecommendations'])
       .map(mapRecommendation)
       .sort((a, b) => b.score - a.score);
   },
 
-<<<<<<< HEAD
   async getAnomalies(): Promise<AnomalyDto[]> {
     const root = await apiClient<unknown>('/ml/transactions/portfolio/anomalies');
-=======
-  async getAnomalies(): Promise<MockAnomaly[]> {
-    const root = await apiClient<unknown>(
-      '/ml/transactions/portfolio/anomalies',
-    );
-
->>>>>>> 8741b1c (fix pipeline)
     return listFrom(root, ['anomalies', 'anomalyInsights']).map(mapAnomaly);
   },
 
