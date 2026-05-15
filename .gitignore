@@ -47,3 +47,6 @@ Thumbs.db
 # Misc
 *.tmp
 *.swp
+
+ml-python/models/artifacts/
+ml-python/data/

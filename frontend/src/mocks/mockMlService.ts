@@ -4,8 +4,17 @@ import { mockRecommendations } from './mockRecommendations.ts';
 import { mockTransactions } from './mockTransactions.ts';
 
 export const mockMlService = {
-  async getTransactions() {
-    return mockTransactions;
+  async getTransactions(page = 1, pageSize = 10) {
+    const startIndex = (page - 1) * pageSize;
+    const rows = mockTransactions.slice(startIndex, startIndex + pageSize);
+
+    return {
+      rows,
+      total: mockTransactions.length,
+      page,
+      pageSize,
+      totalPages: Math.max(1, Math.ceil(mockTransactions.length / pageSize)),
+    };
   },
 
   async getTransactionById(transactionId: string) {

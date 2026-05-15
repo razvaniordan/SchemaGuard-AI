@@ -2,8 +2,11 @@ package com.example.api.service;
 
 import com.example.api.dto.request.TransactionRequest;
 import com.example.api.dto.response.TransactionResponse;
+import com.example.api.dto.response.TransactionPageResponse;
 import com.example.api.entity.*;
 import com.example.api.repository.*;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import com.example.api.repository.MccCodeRepository;
@@ -51,6 +54,30 @@ public class TransactionService {
                 .stream()
                 .map(this::toResponse)
                 .toList();
+    }
+
+    @Transactional(readOnly = true)
+    public TransactionPageResponse findPage(int page, int pageSize) {
+        int normalizedPage = Math.max(page, 1);
+        int normalizedPageSize = Math.max(pageSize, 1);
+
+        var pageable = PageRequest.of(
+                normalizedPage - 1,
+                normalizedPageSize,
+                Sort.by(Sort.Direction.ASC, "transactionId")
+        );
+
+        var transactionPage = transactionRepository.findAll(pageable);
+
+        return new TransactionPageResponse(
+                transactionPage.getContent().stream()
+                        .map(this::toResponse)
+                        .toList(),
+                transactionPage.getTotalElements(),
+                normalizedPage,
+                normalizedPageSize,
+                Math.max(transactionPage.getTotalPages(), 1)
+        );
     }
 
     @Transactional(readOnly = true)
