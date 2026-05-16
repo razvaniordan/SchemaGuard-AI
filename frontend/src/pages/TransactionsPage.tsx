@@ -23,45 +23,29 @@ export function TransactionsPage({ onSelectTransaction }: Props) {
     let isActive = true;
     setIsLoading(true);
 
-    mlService.getTransactions(currentPage, 10).then((response) => {
-      if (isActive) {
-        setTransactionPage(response);
-        setIsLoading(false);
-      }
-    });
+    mlService
+      .getTransactions(currentPage, 10, search, channelFilter, threeDsFilter, statusFilter)
+      .then((response) => {
+        if (isActive) {
+          setTransactionPage(response);
+          setIsLoading(false);
+        }
+      })
+      .catch((err) => {
+        console.error('Failed to load transactions', err);
+        if (isActive) setIsLoading(false);
+      });
 
     return () => {
       isActive = false;
     };
-  }, [currentPage]);
+  }, [currentPage, search, channelFilter, threeDsFilter, statusFilter]);
 
   useEffect(() => {
     setCurrentPage(1);
-  }, [search, channelFilter, threeDsFilter, statusFilter]);
+  }, [channelFilter, threeDsFilter, statusFilter]);
 
-  const filteredTransactions = useMemo(() => {
-    return (transactionPage?.rows ?? []).filter((transaction) => {
-      const searchValue = search.toLowerCase();
-
-      const matchesSearch =
-        transaction.transactionId.toLowerCase().includes(searchValue) ||
-        transaction.merchant.toLowerCase().includes(searchValue) ||
-        transaction.currency.toLowerCase().includes(searchValue);
-
-      const matchesChannel =
-        channelFilter === 'ALL' || transaction.channel === channelFilter;
-
-      const matchesThreeDs =
-        threeDsFilter === 'ALL' ||
-        (threeDsFilter === 'YES' && transaction.threeDS) ||
-        (threeDsFilter === 'NO' && !transaction.threeDS);
-
-      const matchesStatus =
-        statusFilter === 'ALL' || transaction.status === statusFilter;
-
-      return matchesSearch && matchesChannel && matchesThreeDs && matchesStatus;
-    });
-  }, [transactionPage, search, channelFilter, threeDsFilter, statusFilter]);
+  const filteredTransactions = useMemo(() => transactionPage?.rows ?? [], [transactionPage]);
 
   const totalTransactions = transactionPage?.total ?? 0;
   const totalPages = transactionPage?.totalPages ?? 1;
@@ -91,7 +75,10 @@ export function TransactionsPage({ onSelectTransaction }: Props) {
       <div className="mt-6 grid gap-3 md:grid-cols-4">
         <input
           value={search}
-          onChange={(event) => setSearch(event.target.value)}
+          onChange={(event) => {
+            setSearch(event.target.value);
+            setCurrentPage(1);
+          }}
           placeholder="Search transaction or merchant..."
           className="rounded-xl border border-brand-border px-4 py-3 text-sm outline-none focus:border-brand-primary md:col-span-1"
         />
@@ -106,7 +93,8 @@ export function TransactionsPage({ onSelectTransaction }: Props) {
           <option value="ALL">All channels</option>
           <option value="ECOMMERCE">Ecommerce</option>
           <option value="POS">POS</option>
-          <option value="ATM">ATM</option>
+          <option value="MOTO">MOTO</option>
+          <option value="CONTACTLESS">Contactless</option>
         </select>
 
         <select
@@ -130,8 +118,8 @@ export function TransactionsPage({ onSelectTransaction }: Props) {
         >
           <option value="ALL">All statuses</option>
           <option value="APPROVED">Approved</option>
-          <option value="PENDING">Pending</option>
           <option value="DECLINED">Declined</option>
+          <option value="SETTLED">Settled</option>
         </select>
       </div>
 
@@ -213,8 +201,8 @@ export function TransactionsPage({ onSelectTransaction }: Props) {
 
       <div className="mt-5 flex items-center justify-between gap-3">
         <p className="text-sm text-brand-muted">
-          Showing {filteredTransactions.length} transaction(s) on the current page.
-        </p>
+                Showing {transactionPage?.rows.length ?? 0} transaction(s) on the current page.
+              </p>
 
         <div className="flex items-center gap-2">
           <button

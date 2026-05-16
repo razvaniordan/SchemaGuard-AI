@@ -12,6 +12,8 @@ import org.springframework.transaction.annotation.Transactional;
 import com.example.api.repository.MccCodeRepository;
 
 import java.util.List;
+import com.example.api.entity.Transaction.TransactionChannel;
+import com.example.api.entity.Transaction.TransactionStatus;
 
 @Service
 public class TransactionService {
@@ -57,9 +59,12 @@ public class TransactionService {
     }
 
     @Transactional(readOnly = true)
-    public TransactionPageResponse findPage(int page, int pageSize) {
+        public TransactionPageResponse findPage(int page, int pageSize, String searchTerm, String channelFilter, String threeDsFilter, String statusFilter) {
         int normalizedPage = Math.max(page, 1);
         int normalizedPageSize = Math.max(pageSize, 1);
+                String normalizedSearchTerm = searchTerm == null ? "" : searchTerm.trim();
+        boolean numericSearch = normalizedSearchTerm.matches("\\d+");
+        Long transactionId = numericSearch ? Long.valueOf(normalizedSearchTerm) : null;
 
         var pageable = PageRequest.of(
                 normalizedPage - 1,
@@ -67,7 +72,37 @@ public class TransactionService {
                 Sort.by(Sort.Direction.ASC, "transactionId")
         );
 
-        var transactionPage = transactionRepository.findAll(pageable);
+                TransactionChannel channelParam = null;
+                if (channelFilter != null && !channelFilter.isBlank() && !"ALL".equalsIgnoreCase(channelFilter)) {
+                        try {
+                                channelParam = TransactionChannel.valueOf(channelFilter.toUpperCase());
+                        } catch (IllegalArgumentException ignored) {
+                                channelParam = null;
+                        }
+                }
+
+                TransactionStatus statusParam = null;
+                if (statusFilter != null && !statusFilter.isBlank() && !"ALL".equalsIgnoreCase(statusFilter)) {
+                        try {
+                                statusParam = TransactionStatus.valueOf(statusFilter.toUpperCase());
+                        } catch (IllegalArgumentException ignored) {
+                                statusParam = null;
+                        }
+                }
+        String is3dsParam = null;
+        if (threeDsFilter != null && !threeDsFilter.isBlank() && !"ALL".equalsIgnoreCase(threeDsFilter)) {
+            is3dsParam = "YES".equalsIgnoreCase(threeDsFilter) ? "Y" : "N";
+        }
+
+        var transactionPage = transactionRepository.findPageBySearchTerm(
+                normalizedSearchTerm,
+                numericSearch,
+                transactionId,
+                channelParam,
+                is3dsParam,
+                statusParam,
+                pageable
+        );
 
         return new TransactionPageResponse(
                 transactionPage.getContent().stream()

@@ -4,16 +4,38 @@ import { mockRecommendations } from './mockRecommendations.ts';
 import { mockTransactions } from './mockTransactions.ts';
 
 export const mockMlService = {
-  async getTransactions(page = 1, pageSize = 10) {
+  async getTransactions(page = 1, pageSize = 10, search = '', channel = null, threeDs = null, status = null) {
+    const normalizedSearch = search.trim().toLowerCase();
+
+    const filteredBySearch = normalizedSearch.length
+      ? mockTransactions.filter((transaction) => {
+          return (
+            transaction.transactionId.toLowerCase().includes(normalizedSearch) ||
+            transaction.merchant.toLowerCase().includes(normalizedSearch) ||
+            transaction.currency.toLowerCase().includes(normalizedSearch)
+          );
+        })
+      : mockTransactions;
+
+    const filtered = filteredBySearch.filter((transaction) => {
+      if (channel && channel !== 'ALL' && transaction.channel !== channel) return false;
+      if (threeDs && threeDs !== 'ALL') {
+        const want = threeDs === 'YES';
+        if (Boolean(transaction.threeDS) !== want) return false;
+      }
+      if (status && status !== 'ALL' && transaction.status !== status) return false;
+      return true;
+    });
+
     const startIndex = (page - 1) * pageSize;
-    const rows = mockTransactions.slice(startIndex, startIndex + pageSize);
+    const rows = filtered.slice(startIndex, startIndex + pageSize);
 
     return {
       rows,
-      total: mockTransactions.length,
+      total: filtered.length,
       page,
       pageSize,
-      totalPages: Math.max(1, Math.ceil(mockTransactions.length / pageSize)),
+      totalPages: Math.max(1, Math.ceil(filtered.length / pageSize)),
     };
   },
 

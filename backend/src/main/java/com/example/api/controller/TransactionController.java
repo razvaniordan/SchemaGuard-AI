@@ -35,9 +35,13 @@ public class TransactionController {
     @Operation(summary = "List transactions")
     public TransactionPageResponse findAll(
             @RequestParam(defaultValue = "1") int page,
-            @RequestParam(defaultValue = "10") int pageSize
+            @RequestParam(defaultValue = "10") int pageSize,
+            @RequestParam(defaultValue = "") String search,
+            @RequestParam(defaultValue = "") String channel,
+            @RequestParam(defaultValue = "") String threeDs,
+            @RequestParam(defaultValue = "") String status
     ) {
-        return transactionService.findPage(page, pageSize);
+        return transactionService.findPage(page, pageSize, search, channel, threeDs, status);
     }
 
     @GetMapping("/{id}")
