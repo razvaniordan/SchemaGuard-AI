@@ -11,8 +11,25 @@ import org.springframework.data.repository.query.Param;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 
+import java.util.List;
+
 @Repository
 public interface TransactionRepository extends JpaRepository<Transaction, Long> {
+
+	@Override
+    @EntityGraph(attributePaths = {
+            "merchant",
+            "merchant.country",
+            "card",
+            "card.cardType",
+            "issuerBank",
+            "issuerBank.country",
+            "cardNetwork",
+            "mccCode",
+            "region"
+    })
+    List<Transaction> findAll();
+
 	@EntityGraph(attributePaths = {
 			"client",
 			"merchant",
@@ -52,12 +69,12 @@ public interface TransactionRepository extends JpaRepository<Transaction, Long> 
 					"""
 	)
     Page<Transaction> findPageBySearchTerm(
-    	    @Param("searchTerm") String searchTerm,
-    	    @Param("numericSearch") boolean numericSearch,
-    	    @Param("transactionId") Long transactionId,
+    	@Param("searchTerm") String searchTerm,
+    	@Param("numericSearch") boolean numericSearch,
+    	@Param("transactionId") Long transactionId,
         @Param("channel") TransactionChannel channel,
         @Param("is3ds") String is3ds,
         @Param("status") TransactionStatus status,
-    	    Pageable pageable
+    	Pageable pageable
     	);
 }
