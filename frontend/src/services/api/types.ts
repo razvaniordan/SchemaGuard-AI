@@ -1,5 +1,5 @@
-export type TransactionStatus = 'APPROVED' | 'DECLINED' | 'PENDING';
-export type TransactionChannel = 'ECOMMERCE' | 'POS' | 'ATM';
+export type TransactionStatus = 'APPROVED' | 'DECLINED' | 'SETTLED';
+export type TransactionChannel = 'ECOMMERCE' | 'POS' | 'MOTO' | 'CONTACTLESS';
 
 export type TransactionDto = {
   transactionId: string;

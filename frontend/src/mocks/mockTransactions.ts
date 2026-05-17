@@ -1,5 +1,5 @@
-export type TransactionStatus = 'APPROVED' | 'DECLINED' | 'PENDING';
-export type TransactionChannel = 'ECOMMERCE' | 'POS' | 'ATM';
+export type TransactionStatus = 'APPROVED' | 'DECLINED' | 'SETTLED';
+export type TransactionChannel = 'ECOMMERCE' | 'POS' | 'MOTO' | 'CONTACTLESS';
 
 export type MockTransaction = {
   transactionId: string;
@@ -105,7 +105,7 @@ export const mockTransactions: MockTransaction[] = [
     authorizationDate: '2026-05-04',
     clearingDate: '2026-05-07',
     clearingDelayDays: 3,
-    status: 'PENDING',
+    status: 'SETTLED',
   },
   {
     transactionId: 'TX-1005',
@@ -117,7 +117,7 @@ export const mockTransactions: MockTransaction[] = [
     mcc: '6011',
     cardNetwork: 'VISA',
     cardType: 'DEBIT',
-    channel: 'ATM',
+    channel: 'CONTACTLESS',
     threeDS: false,
     issuerCountry: 'RO',
     acquirerCountry: 'RO',

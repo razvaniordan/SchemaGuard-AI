@@ -30,10 +30,10 @@ type BackendTransaction = {
   cardNetworkName?: string;
   transactionAmount?: number | string;
   transactionCurrency?: string;
-  transactionChannel?: 'ECOMMERCE' | 'POS' | 'ATM' | string;
+  transactionChannel?: 'ECOMMERCE' | 'POS' | 'MOTO' | 'CONTACTLESS' | string;
   authorizationDatetime?: string | null;
   clearingDatetime?: string | null;
-  transactionStatus?: 'APPROVED' | 'DECLINED' | 'PENDING' | string;
+  transactionStatus?: 'APPROVED' | 'DECLINED' | 'SETTLED' | string;
   is3dsAuthenticated?: 'Y' | 'N' | string | null;
   eciValue?: string | null;
   regionCode?: string;
@@ -227,7 +227,10 @@ function mapTransaction(transaction: BackendTransaction): TransactionDto {
         : 'VISA',
     cardType: 'CREDIT',
     channel:
-      transaction.transactionChannel === 'POS' || transaction.transactionChannel === 'ATM'
+      transaction.transactionChannel === 'ECOMMERCE' ||
+      transaction.transactionChannel === 'POS' ||
+      transaction.transactionChannel === 'MOTO' ||
+      transaction.transactionChannel === 'CONTACTLESS'
         ? transaction.transactionChannel
         : 'ECOMMERCE',
     threeDS: transaction.is3dsAuthenticated === 'Y',
@@ -242,7 +245,9 @@ function mapTransaction(transaction: BackendTransaction): TransactionDto {
       transaction.clearingDatetime,
     ),
     status:
-      transaction.transactionStatus === 'DECLINED' || transaction.transactionStatus === 'PENDING'
+      transaction.transactionStatus === 'APPROVED' ||
+      transaction.transactionStatus === 'DECLINED' ||
+      transaction.transactionStatus === 'SETTLED'
         ? transaction.transactionStatus
         : 'APPROVED',
   };
@@ -413,10 +418,25 @@ function mapReport(report: BackendOptimizationReport): OptimizationReportDto {
 }
 
 export const mlService = {
-  async getTransactions(page = 1, pageSize = 10): Promise<TransactionPageDto> {
-    const response = await apiClient<BackendTransactionPage>(
-      `/transactions?page=${page}&pageSize=${pageSize}`,
-    );
+  async getTransactions(
+    page = 1,
+    pageSize = 10,
+    search = '',
+    channel: string | null = null,
+    threeDs: string | null = null,
+    status: string | null = null,
+  ): Promise<TransactionPageDto> {
+    const query = new URLSearchParams({
+      page: String(page),
+      pageSize: String(pageSize),
+    });
+
+    if (search.trim().length > 0) query.set('search', search.trim());
+    if (channel && channel !== 'ALL') query.set('channel', channel);
+    if (threeDs && threeDs !== 'ALL') query.set('threeDs', threeDs);
+    if (status && status !== 'ALL') query.set('status', status);
+
+    const response = await apiClient<BackendTransactionPage>(`/transactions?${query.toString()}`);
 
     return {
       ...response,
